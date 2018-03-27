@@ -7,13 +7,15 @@ class Game():
 	def __init__(self, players):
 		"""Set the list of players, and set the current_player to the first player."""
 		self.current_player = 0
-		self.players = players 
+		self.players = players
+		self.print_moves = False 
 
 	def play_out(self):
 		"""Play out a single game until one or more players is dead."""
 		while not self.game_is_over():
 			player = self.players[self.current_player]
-			print "{} {}'s turn.".format(player.__class__.__name__, self.current_player)
+			if self.print_moves:
+				print "{} {}'s turn.".format(player.__class__.__name__, self.current_player)
 			player.play_move(self)
 			self.end_turn()
 
@@ -32,13 +34,15 @@ class Game():
 
 		losing_hp = None
 		winning_hp = None
+		winner = None
 		for p in self.players:
 			if p.hit_points <= 0:
 				losing_hp = p.hit_points
 			else:
 				winning_hp = p.hit_points
+				winner = p
 
-		print "Game Over - {} {} wins! Final hit points are {} to {}.".format(p.__class__.__name__, players.index(p), winning_hp, losing_hp)
+		print "Game Over - {} {} wins! Final hit points are {} to {}.".format(winner.__class__.__name__, players.index(winner), winning_hp, losing_hp)
 
 	def game_is_drawn(self):
 		"""Returns true if all players has <= 0 hit points."""
@@ -57,15 +61,25 @@ class Game():
 				
 		return dead_players
 
+	def opponent(self, player):
+		"""Returns the player that isn't the given player."""
+		for p in self.players:
+			if p != player:
+				return p
+				
+		return dead_players
+
 	def strike_player(self, player):
 		"""Remove 3 it points from player."""
 		damage = 3
 		player.hit_points -= damage
-		print ">>>>{} {} got hit for {} damage!".format(player.__class__.__name__, players.index(player), damage)
+		if self.print_moves:
+			print ">>>>{} {} got hit for {} damage!".format(player.__class__.__name__, players.index(player), damage)
 
 	def do_nothing(self, player):
 		"""Do nothing for a turn, as opposed to striking."""
-		print ">>>>{} {} did nothing.".format(player.__class__.__name__, players.index(player))
+		if self.print_moves:
+			print ">>>>{} {} did nothing.".format(player.__class__.__name__, players.index(player))
 
 	def play_random_move(self, player):
 		"""Possible moves are strike self, strike opponent, or do nothing."""
@@ -101,6 +115,11 @@ class PassBot(Bot):
 	def play_move(self, game):
 		game.do_nothing(self)
 
+class StrikeBot(Bot):
+	"""StrikeBot always Strikes, then ends the turn,."""
+
+	def play_move(self, game):
+		game.strike_player(game.opponent(self))
 
 class RandomBot(Bot):
 	"""RandomBot plays a random legal move on its turn, then ends the turn,."""
@@ -111,11 +130,11 @@ class RandomBot(Bot):
 
 if __name__ == "__main__":
 	starting_hit_points = 15
-	players = [
-    	PassBot(starting_hit_points=starting_hit_points),
-		RandomBot(starting_hit_points=starting_hit_points),
-	]
 
-	game = Game(players)
-	game.play_out()
-
+	for x in range(0, 10000):
+		players = [
+			RandomBot(starting_hit_points=starting_hit_points),
+	    	StrikeBot(starting_hit_points=starting_hit_points),
+		]
+		game = Game(players)
+		game.play_out()
