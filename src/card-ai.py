@@ -1,4 +1,3 @@
-import copy
 import random
 
 
@@ -14,7 +13,6 @@ class Game():
 
 	def play_out(self):
 		"""Play out a game until one or more players is at zero hit points."""
-
 
 		while not self.game_is_over():
 			player = self.players[self.current_player]
@@ -33,10 +31,11 @@ class Game():
 		return winner, winning_hp, losing_hp
 
 	def end_turn(self):
-		"""Ppass to the next player."""
+		"""Pass to the next player."""
 		self.current_player = 1 if self.current_player == 0 else 0
 
 	def winning_player(self):
+		"""Returns the winning player, hp of winning player, and hp of losing player. Returns None, None, None on draws."""
 		if self.game_is_drawn():
 			return None, None, None
 		losing_hp = None
@@ -89,7 +88,6 @@ class Game():
 			print self.players
 			print ">>>>{} {} did nothing.".format(player.__class__.__name__, self.players.index(player))
 
-
 	def possible_moves(self, moving_player):
 		return [
 			{'method': self.strike_player, 'arg': self.players[0]},
@@ -103,6 +101,7 @@ class Bot():
 
 	def __init__(self, starting_hit_points=0):
 		self.hit_points = starting_hit_points
+
 
 class PassBot(Bot):
 	"""PassBot always does nothing, then ends the turn."""
@@ -133,6 +132,7 @@ class BasicMonteCarloBot(Bot):
 	"""BasicMonteCarloBot plays out N iterations randomly, trying out all possible moves, choosing the move that wins the most."""
 
 	def play_move(self, game, iterations=100):
+		"""Plays the move in game that wins the most over the test iterations."""
 		scores = []
 		move_index = 0
 		top_score_index = 0
@@ -151,7 +151,7 @@ class BasicMonteCarloBot(Bot):
 		move = game.possible_moves(self)[top_score_index]
 		move['method'](move['arg'])
 
-	def calc_win_rate(self, game, move_index, iterations=1):
+	def calc_win_rate(self, game, move_index, iterations):
 		""" Returns a percentage times the move won. """
 		
 		wins = 0
@@ -184,6 +184,7 @@ class BasicMonteCarloBot(Bot):
 
 
 if __name__ == "__main__":
+	
 	starting_hit_points = 5
 	number_of_games = 200
 
