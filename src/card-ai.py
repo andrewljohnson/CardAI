@@ -1,3 +1,4 @@
+import copy
 import random
 
 
@@ -9,28 +10,35 @@ class Game():
 		self.current_player = 0
 		self.players = players
 		self.print_moves = False 
+		self.print_wins = True 
 
 	def play_out(self):
 		"""Play out a game until one or more players is at zero hit points."""
+
+
 		while not self.game_is_over():
 			player = self.players[self.current_player]
 			if self.print_moves:
 				print "{} {}'s turn.".format(player.__class__.__name__, self.current_player)
 			player.play_move(self)
 			self.end_turn()
+		
+		winner, winning_hp, losing_hp = self.winning_player()
+		if self.print_wins:
+			if not winner:
+				print "Game Over - Draw"
+			else:
+				print "Game Over - {} {} wins! Final hit points are {} to {}.".format(winner.__class__.__name__, self.players.index(winner), winning_hp, losing_hp)
+
+		return winner, winning_hp, losing_hp
 
 	def end_turn(self):
-		"""Check if the game is over. If not, pass to the next player."""
-		if self.game_is_over():
-			self.end_game()
-
+		"""Ppass to the next player."""
 		self.current_player = 1 if self.current_player == 0 else 0
 
-	def end_game(self):
-		"""Print the winner of the game."""
+	def winning_player(self):
 		if self.game_is_drawn():
-			print "Game Over - Draw"
-
+			return None, None, None
 		losing_hp = None
 		winning_hp = None
 		winner = None
@@ -41,7 +49,7 @@ class Game():
 				winning_hp = p.hit_points
 				winner = p
 
-		print "Game Over - {} {} wins! Final hit points are {} to {}.".format(winner.__class__.__name__, players.index(winner), winning_hp, losing_hp)
+		return winner, winning_hp, losing_hp
 
 	def game_is_drawn(self):
 		"""Return true if all players has <= 0 hit points."""
@@ -73,12 +81,22 @@ class Game():
 		damage = 1
 		player.hit_points -= damage
 		if self.print_moves:
-			print ">>>>{} {} got hit for {} damage!".format(player.__class__.__name__, players.index(player), damage)
+			print ">>>>{} {} got hit for {} damage!".format(player.__class__.__name__, self.players.index(player), damage)
 
 	def do_nothing(self, player):
 		"""Do nothing for a turn."""
 		if self.print_moves:
-			print ">>>>{} {} did nothing.".format(player.__class__.__name__, players.index(player))
+			print self.players
+			print ">>>>{} {} did nothing.".format(player.__class__.__name__, self.players.index(player))
+
+
+	def possible_moves(self, moving_player):
+		return [
+			{'method': self.strike_player, 'arg': self.players[0]},
+			{'method': self.strike_player, 'arg': self.players[1]},
+			{'method': self.do_nothing, 'arg': moving_player},
+		]
+
 
 class Bot():
 	"""The base Bot class."""
@@ -86,15 +104,12 @@ class Bot():
 	def __init__(self, starting_hit_points=0):
 		self.hit_points = starting_hit_points
 
-	def play_move(self, game):
-		game.do_nothing(self)
-
-
 class PassBot(Bot):
 	"""PassBot always does nothing, then ends the turn."""
 
 	def play_move(self, game):
 		game.do_nothing(self)
+
 
 class StrikeBot(Bot):
 	"""StrikeBot always Strikes, then ends the turn,."""
@@ -102,32 +117,80 @@ class StrikeBot(Bot):
 	def play_move(self, game):
 		game.strike_player(game.opponent(self))
 
+
 class RandomBot(Bot):
 	"""RandomBot plays a random legal move on its turn, then ends the turn,."""
 
 	def play_move(self, game):
 		"""Play a random move in game. Possible moves are strike self, strike opponent, or do nothing."""
-		possible_moves = [
-							{'method': game.strike_player, 'arg': game.players[0]},
-							{'method': game.strike_player, 'arg': game.players[1]},
-							{'method': game.do_nothing, 'arg': self},
-						  ]
 
 		move_index = random.randint(0,2)
-		move = possible_moves[move_index]
-		if 'arg' in move:
+		move = game.possible_moves(self)[move_index]
+		move['method'](move['arg'])
+
+
+class BasicMonteCarloBot(Bot):
+	"""BasicMonteCarloBot plays out N iterations randomly, trying out all possible moves, choosing the move that wins the most."""
+
+	def play_move(self, game, iterations=100):
+		scores = []
+		move_index = 0
+		top_score_index = 0
+		top_score = 0
+
+		for move in game.possible_moves(self):
+			score = self.calc_win_rate(game, move_index, iterations=iterations)
+			if score > top_score:
+				top_score = score
+				top_score_index = move_index
+			scores.append(score)
+			move_index += 1
+
+		if game.print_moves:
+			print "move scores: {} ({} won)".format(scores, top_score_index)
+		move = game.possible_moves(self)[top_score_index]
+		move['method'](move['arg'])
+
+	def calc_win_rate(self, game, move_index, iterations=1):
+		""" Returns a percentage times the move won. """
+		
+		wins = 0
+		losses = 0
+
+		for x in range(0, iterations):
+
+			players = [
+	    	RandomBot(starting_hit_points=game.players[game.current_player].hit_points),
+				RandomBot(starting_hit_points=game.opponent(self).hit_points),
+			]
+
+			clone_game = Game(players)
+ 			clone_game.print_wins = False
+			clone_game.current_player = game.current_player
+
+			move = clone_game.possible_moves(players[0])[move_index]
 			move['method'](move['arg'])
-		else:
-			move['method']()
+			clone_game.end_turn()
+			winner, _, _ = clone_game.play_out()
+			if winner == players[0]:
+				wins += 1
+			elif winner != None:
+				losses += 1
+
+		if wins + losses == 0:
+			return 0
+		
+		return wins * 1.0 / (wins+losses)
 
 
 if __name__ == "__main__":
-	starting_hit_points = 2
+	starting_hit_points = 5
+	number_of_games = 200
 
-	for x in range(0, 10000):
+	for x in range(0, number_of_games):
 		players = [
-			RandomBot(starting_hit_points=starting_hit_points),
-	    	StrikeBot(starting_hit_points=starting_hit_points),
+	    BasicMonteCarloBot(starting_hit_points=starting_hit_points),
+			PassBot(starting_hit_points=starting_hit_points),
 		]
 		game = Game(players)
 		game.play_out()
