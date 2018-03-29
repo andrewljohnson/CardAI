@@ -10,14 +10,13 @@ class Game():
 		self.players = players
 		self.print_moves = False 
 		self.print_wins = True 
+		self.current_turn = 0;
 
 	def play_out(self):
 		"""Play out a game until one or more players is at zero hit points."""
 
 		while not self.game_is_over():
 			player = self.players[self.current_player]
-			if self.print_moves:
-				print "{} {}'s turn.".format(player.__class__.__name__, self.current_player)
 			player.play_move(self)
 			self.end_turn()
 		
@@ -33,6 +32,7 @@ class Game():
 	def end_turn(self):
 		"""Pass to the next player."""
 		self.current_player = 1 if self.current_player == 0 else 0
+		self.current_turn += 1
 
 	def winning_player(self):
 		"""Returns the winning player, hp of winning player, and hp of losing player. Returns None, None, None on draws."""
@@ -80,28 +80,43 @@ class Game():
 		damage = 1
 		player.hit_points -= damage
 		if self.print_moves:
-			print ">>>>{} {} got hit for {} damage!".format(player.__class__.__name__, self.players.index(player), damage)
+			print "Turn {} - {} {} got hit for {} damage!".format(self.current_turn, player.__class__.__name__, self.players.index(player), damage)
+
+	def blast_player(self, players):
+		blaster = players[0]
+		blastee = players[1]
+		"""Remove hit points from player."""
+		blastee.hit_points -= blaster.mana
+		if self.print_moves:
+			print "Turn {} - {} {} got hit for {} damage!".format(self.current_turn, blastee.__class__.__name__, self.players.index(blastee), blaster.mana)
+
+	def add_mana(self, player):
+		"""Add 1 to the mana player can use each turn."""
+		player.mana += 1
+		if self.print_moves:
+			print "Turn {} - {} {} added a mana, how has {} mana.".format(self.current_turn, player.__class__.__name__, self.players.index(player), player.mana)
 
 	def do_nothing(self, player):
 		"""Do nothing for a turn."""
 		if self.print_moves:
-			print self.players
-			print ">>>>{} {} did nothing.".format(player.__class__.__name__, self.players.index(player))
+			print "Turn {} - {} {} did nothing.".format(self.current_turn, player.__class__.__name__, self.players.index(player))
 
 	def possible_moves(self, moving_player):
 		return [
-			{'method': self.strike_player, 'arg': self.players[0]},
-			{'method': self.strike_player, 'arg': self.players[1]},
-			{'method': self.do_nothing, 'arg': moving_player},
+			{'method': self.add_mana, 'arg': moving_player},
+			{'method': self.blast_player, 'arg': [moving_player, self.opponent(moving_player)]},
+			#{'method': self.strike_player, 'arg': self.opponent(moving_player)},
+			#{'method': self.strike_player, 'arg': moving_player},
+			#{'method': self.do_nothing, 'arg': moving_player},
 		]
 
 
 class Bot():
 	"""The base Bot class."""
 
-	def __init__(self, starting_hit_points=0):
+	def __init__(self, starting_hit_points=0, starting_mana=0):
 		self.hit_points = starting_hit_points
-
+		self.mana = starting_mana
 
 class PassBot(Bot):
 	"""PassBot always does nothing, then ends the turn."""
@@ -123,7 +138,7 @@ class RandomBot(Bot):
 	def play_move(self, game):
 		"""Play a random move in game. Possible moves are strike self, strike opponent, or do nothing."""
 
-		move_index = random.randint(0,2)
+		move_index = random.randint(0,1)
 		move = game.possible_moves(self)[move_index]
 		move['method'](move['arg'])
 
@@ -131,7 +146,7 @@ class RandomBot(Bot):
 class BasicMonteCarloBot(Bot):
 	"""BasicMonteCarloBot plays out N iterations randomly, trying out all possible moves, choosing the move that wins the most."""
 
-	def play_move(self, game, iterations=100):
+	def play_move(self, game, iterations=2000):
 		"""Plays the move in game that wins the most over the test iterations."""
 		scores = []
 		move_index = 0
@@ -146,8 +161,7 @@ class BasicMonteCarloBot(Bot):
 			scores.append(score)
 			move_index += 1
 
-		if game.print_moves:
-			print "move scores: {} ({} won)".format(scores, top_score_index)
+		print "move scores: {} ({} won)".format(scores, top_score_index)
 		move = game.possible_moves(self)[top_score_index]
 		move['method'](move['arg'])
 
@@ -160,19 +174,20 @@ class BasicMonteCarloBot(Bot):
 		for x in range(0, iterations):
 
 			players = [
-	    	RandomBot(starting_hit_points=game.players[game.current_player].hit_points),
-				RandomBot(starting_hit_points=game.opponent(self).hit_points),
+	    	RandomBot(starting_hit_points=game.players[game.current_player].hit_points, starting_mana=game.players[game.current_player].mana),
+				RandomBot(starting_hit_points=game.opponent(game.current_player).hit_points, starting_mana=game.opponent(game.current_player).mana),
 			]
 
 			clone_game = Game(players)
  			clone_game.print_wins = False
+ 			clone_game.print_moves = False
 			clone_game.current_player = game.current_player
 
-			move = clone_game.possible_moves(players[0])[move_index]
+			move = clone_game.possible_moves(players[game.current_player])[move_index]
 			move['method'](move['arg'])
 			clone_game.end_turn()
 			winner, _, _ = clone_game.play_out()
-			if winner == players[0]:
+			if winner == players[game.current_player]:
 				wins += 1
 			elif winner != None:
 				losses += 1
@@ -184,14 +199,14 @@ class BasicMonteCarloBot(Bot):
 
 
 if __name__ == "__main__":
-	
-	starting_hit_points = 5
-	number_of_games = 200
+
+	starting_hit_points = 100
+	number_of_games = 1
 
 	for x in range(0, number_of_games):
 		players = [
 	    BasicMonteCarloBot(starting_hit_points=starting_hit_points),
-			PassBot(starting_hit_points=starting_hit_points),
+			RandomBot(starting_hit_points=starting_hit_points),
 		]
 		game = Game(players)
 		game.play_out()
