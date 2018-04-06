@@ -13,7 +13,7 @@ class MonteCarloBot(Bot):
 		top_score_index = 0
 		top_score = 0
 
-		for move in game.legal_plays([game.state_repr()]):
+		for move in game.legal_plays([game.state_repr()], self.mana):
 			score = self.calc_win_rate(game, move_index, iterations=iterations)
 			if score > top_score:
 				top_score = score
@@ -21,7 +21,7 @@ class MonteCarloBot(Bot):
 			scores.append(score)
 			move_index += 1
 
-		move = game.legal_plays([game.state_repr()])[top_score_index]
+		move = game.legal_plays([game.state_repr()], self.mana)[top_score_index]
 		game.do_move(move)
 		
 	def calc_win_rate(self, game, move_index, iterations):
@@ -41,7 +41,7 @@ class MonteCarloBot(Bot):
 			clone_game = Game(players)
 			clone_game.current_player_number = game.current_player_number
 
-			move = clone_game.legal_plays([clone_game.state_repr()])[move_index]
+			move = clone_game.legal_plays([clone_game.state_repr()], self.mana)[move_index]
 			clone_game.do_move(move)
 			winner, _, _ = clone_game.play_out()
 			if winner == players[game.current_player_number-1]:

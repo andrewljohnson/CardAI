@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(MonteCarloBot):
-	def __init__(self, starting_hit_points=0, starting_mana=0):
+	def __init__(self, starting_hit_points=0, starting_mana=0, max_moves=200, simulation_time=10, C=3.5):
 
 		# previous states the game has been in
 		self.states = []
@@ -17,14 +17,13 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 		self.hit_points = starting_hit_points
 
 		# the amount of time to call run_simulation as much as possible 		
-		seconds = kwargs.get('time', 1)
-		self.calculation_time = datetime.timedelta(seconds=seconds)
+		self.calculation_time = datetime.timedelta(seconds=simulation_time)
 
 		# the max_moves for any simulation
-		self.max_moves = kwargs.get('max_moves', 100)
+		self.max_moves = max_moves
 		
 		# Larger C encourages more exploration of the possibilities, smaller causes the AI to prefer concentrating on known good moves
-		self.C = kwargs.get('C', 3.5)
+		self.C = C
 
 		# statistics about previously simulated game states
 		self.wins = {}
@@ -32,18 +31,18 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 
 	def play_move(self, game):
 		"""Play a move in game and append it to self.states."""
-		move = self.get_play()
-		self.states.append(game.next_state(game.state_repr(), move))
-		game.do_move(move)
+		move_list = self.get_play()
+		self.states.append(game.next_state(game.state_repr(), move_list))
+		game.do_move(move_list)
 
 	def get_play(self):
 		"""Return the best play after simulating possible plays and updating the plays and wins stats."""
 		state = self.states[-1]
-		legal = self.board.legal_plays(self.states[:])
+		legal = self.board.legal_plays(self.states[:], self.mana)
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
-			return
+			return []
 		if len(legal) == 1:
 			return legal[0]
 
@@ -66,15 +65,17 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 		)
 
 		# Display the stats for each possible play.
+		'''
 		for x in sorted(
 			((100 * self.wins.get((player, S), 0) * 1.0 /
 				self.plays.get((player, S), 1),
 				self.wins.get((player, S), 0),
-				self.plays.get((player, S), 0), p['method'])
+				self.plays.get((player, S), 0), p[0])
 			 for p, S in moves_states),
 			reverse=True
 		):
 			print "{3}: {0:.2f}% ({1} / {2})".format(*x)
+		'''
 
 		return move
 
@@ -90,7 +91,7 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
-			legal = self.board.legal_plays(states_copy)
+			legal = self.board.legal_plays(states_copy, self.mana)
 			moves_states = [(p, self.board.next_state(state, p)) for p in legal]
 
 			if all(plays.get((player, S)) for p, S in moves_states):
