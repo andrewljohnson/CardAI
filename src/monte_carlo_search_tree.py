@@ -31,9 +31,9 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 
 	def play_move(self, game):
 		"""Play a move in game and append it to self.states."""
-		move_list = self.get_play()
-		self.states.append(game.next_state(game.state_repr(), move_list))
-		game.do_move(move_list)
+		move = self.get_play()
+		self.states.append(game.next_state(game.state_repr(), move))
+		game.do_move(move)
 
 	def get_play(self):
 		"""Return the best play after simulating possible plays and updating the plays and wins stats."""

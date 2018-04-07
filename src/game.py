@@ -1,7 +1,7 @@
 """Game encapsulates the rules and state of a game."""
 
 from bot import Bot
-from itertools import chain, combinations
+
 
 class Game():
 	"""A fantasy card game instance."""
@@ -192,23 +192,23 @@ class Game():
 			print "> {} {} WRATHED, {} creatures died.".format(current_player.__class__.__name__, self.players.index(current_player), len(self.creatures))
 		self.creatures = []
 
-	def do_move(self, move_list):
+	def do_move(self, move):
 		"""Do the move and increment the turn."""
 		if self.current_player_number == 1 and self.print_moves:
 			print "Turn {}".format(self.current_turn)
-		for move in move_list:
-			if move:
-				eval("self.{}".format(move[0]))(move[1])
+		eval("self.{}".format(move[0]))(move[1])
 		self.end_turn()
 
 	def current_player(self, state):
 		"""The player_number of the player due to make move in state."""
 		return state[0]
 
-	def next_state(self, state, play_list):
+	def next_state(self, state, play):
 		"""Returns a new state after applying the play to state."""
-		players = [Bot(starting_hit_points=state[2], starting_mana=state[3]), 
-							Bot(starting_hit_points=state[4], starting_mana=state[5])]
+		players = [
+			Bot(starting_hit_points=state[2], starting_mana=state[3]), 
+			Bot(starting_hit_points=state[4], starting_mana=state[5])
+		]
 		clone_game = Game(players)
 		clone_game.current_player_number = state[0]
 		clone_game.current_turn = state[1]
@@ -217,10 +217,8 @@ class Game():
 			c = Creature(creature_tuple[0], strength=creature_tuple[1], hit_points=creature_tuple[2])
 			clone_game.creatures.append(c)
 
-		if play_list:
-			for play in play_list:
-				eval("clone_game.{}".format(play[0]))(play[1])
-				clone_game.end_turn()
+		eval("clone_game.{}".format(play[0]))(play[1])
+		clone_game.end_turn()
 
 		return clone_game.state_repr()
 
@@ -231,38 +229,20 @@ class Game():
 		moving_player = game_state[0]
 		opponent = 2 if moving_player == 1 else 1
 
-		possible_moves = []
+		possible_moves = [('buff_mana', moving_player, available_mana),]
 
 		methods = [('summon_bear', moving_player, 2), 
 	               ('summon_bull', moving_player, 3), 
 	               ('edict', opponent, 1), 
 	               ('wrath', opponent, 2), 
 	               ('blast_player', [moving_player, opponent], available_mana), 
-	               ('buff_mana', moving_player, available_mana), 
 	               ('bolt', opponent, 1),
 		]
 		for method in methods:
-			if available_mana > 0:
-				for x in xrange(0, available_mana / method[2]):
-					possible_moves.append(method+tuple())
+			if method[2] <= available_mana:
+				possible_moves.append(method+tuple())
 		
-		possible_combos = []
-		
-		n = 0
-		for subset in chain(*map(lambda x: combinations(possible_moves, x), range(0, len(possible_moves)+1))):
-			if n > 100:  # this is arbitrary, for when cmbiantons gett too large when lots of mana available
-				break
-			n += 1
-		  	if subset == ():
-			  	possible_combos.append([('do_nothing', moving_player, 0)])
-		  	else:		  	
-		  		sum_cost = 0
-		  		for move in subset:
-			  		sum_cost += move[2]	
-			  	if sum_cost <= available_mana:
-				  	possible_combos.append(subset)
-
-		return possible_combos
+		return possible_moves
 
 
 	def winner(self, state_history):
