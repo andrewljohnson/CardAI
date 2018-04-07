@@ -24,6 +24,18 @@ class Game():
 		# a hashable list of creatures
 		self.creatures = []
 
+		self.attackers = []
+
+		self.blockers = []
+
+		self.is_my_turn = True
+
+		self.played_land = False
+
+		self.assigned_blockers = False
+
+		self.attacked = False
+
 		for p in players:
 			p.board = self
 			p.states = [self.state_repr()]
@@ -35,9 +47,16 @@ class Game():
 						self.current_turn, 
 						self.players[0].hit_points, 
 						self.players[0].mana, 
+						self.players[0].current_mana, 
 						self.players[1].hit_points, 
 						self.players[1].mana,
-						tuple([c.state_repr() for c in self.creatures]))
+						self.players[1].current_mana, 
+						self.played_land, 
+						self.is_my_turn, 
+						self.assigned_blockers, 
+						tuple([c.state_repr() for c in self.creatures]),
+						tuple([c.state_repr() for c in self.attackers]),
+						tuple([c.state_repr() for c in self.blockers]))
 
 	def play_out(self):
 		"""Play out a game until one or more players is at zero hit points."""
@@ -45,34 +64,6 @@ class Game():
 		while not self.game_is_over():
 			player = self.players[self.current_player_number - 1]
 			player.play_move(self)
-			self.opponent(player).states.append(self.state_repr())
-
-		return self.winning_player()
-
-	def end_turn(self):
-		"""Pass to the next player."""
-		
-		total_attack = 0
-		current_player = self.players[self.current_player_number-1]
-		opponent = self.opponent(current_player)
-		for creature in self.creatures:
-			if creature.owner == self.current_player_number:
-				opponent.hit_points -= creature.strength
-				total_attack += creature.strength
-
-		if self.print_moves:
-			if total_attack > 0:
-				print "> {} {} ATTACKED for {}.".format(current_player.__class__.__name__, self.players.index(current_player), total_attack)
-
-		self.current_player_number = 2 if self.current_player_number == 1 else 1
-
-		if self.current_player_number == 1:
-			self.current_turn += 1
-			self.players[0].mana += 1
-			self.players[1].mana += 1
-		
-		#self.players[0].states.append(self.state_repr())
-		#self.players[1].states.append(self.state_repr())
 
 		if self.print_moves:
 			if self.game_is_over():
@@ -82,6 +73,32 @@ class Game():
 				else:
 					print "Game Over - {} {} wins! Final hit points are {} to {}.".format(winner.__class__.__name__, self.players.index(winner), winning_hp, losing_hp)
 
+		return self.winning_player()
+
+
+	def pass_the_turn(self, moving_player):
+		player = self.players[moving_player - 1]
+		if self.print_moves:
+			print "{} {} passes the turn.".format(player.__class__.__name__, self.players.index(player))
+		self.end_turn()
+
+
+	def end_turn(self):
+		"""Pass to the next player."""
+		
+		self.current_player_number = 2 if self.current_player_number == 1 else 1
+		player = self.players[self.current_player_number - 1]
+		player.current_mana = player.mana
+		self.played_land = False
+		self.is_my_turn = True
+		self.assigned_blockers = False
+		self.attacked = False
+
+		if self.print_moves:
+			print "End of Turn {}".format(self.current_turn)
+
+		self.current_turn += 1
+		
 	def winning_player(self):
 		"""Returns the winning player, hp of winning player, and hp of losing player. Returns None, None, None on draws."""
 		if self.game_is_drawn():
@@ -99,11 +116,11 @@ class Game():
 		return winner, winning_hp, losing_hp
 
 	def game_is_drawn(self):
-		"""Return true if all players has <= 0 hit points."""
+		"""Return True if all players has <= 0 hit points."""
 		return len(self.dead_players()) == len(self.players)
 
 	def game_is_over(self):
-		"""Return true if either player has <= 0 hit points."""
+		"""Return True if either player has <= 0 hit points."""
 		return len(self.dead_players()) > 0
 
 	def dead_players(self):
@@ -123,14 +140,14 @@ class Game():
 				
 		return dead_players
 
-	def blast_player(self, player_numbers):
+	def fireball(self, player_numbers):
 		"""Decrement hit_points equal to blaster's mana from blastee."""
 		blaster = self.players[player_numbers[0]-1]
 		blastee = self.players[player_numbers[1]-1]
 		"""Remove hit points from player."""
-		blastee.hit_points -= blaster.mana * 2 - 1
+		blastee.hit_points -= blaster.current_mana * 2 - 1
 		if self.print_moves:
-			print "> {} {} BLASTED for {} damage!".format(blaster.__class__.__name__,  self.players.index(blaster), blaster.mana)
+			print "> {} {} FIREBALLED for {} damage!".format(blaster.__class__.__name__,  self.players.index(blaster), blaster.current_mana)
 
 	def bolt(self, player_number):
 		"""Decrement some damage from player_number."""
@@ -141,12 +158,13 @@ class Game():
 		if self.print_moves:
 			print "> {} {} BOLTED for {} damage!".format(opponent.__class__.__name__, self.players.index(opponent), damage)
 
-	def buff_mana(self, player_number):
+	def play_tapped_land(self, player_number):
 		"""Increment a mana from player_number."""
 		player = self.players[player_number-1]
 		player.mana += 1
+		self.played_land = True
 		if self.print_moves:
-			print "> {} {} buffed mana!".format(player.__class__.__name__, self.players.index(player))
+			print "> {} {} played a TAPPED LAND!".format(player.__class__.__name__, self.players.index(player))
 
 	def do_nothing(self, player_number):
 		player = self.players[player_number-1]
@@ -159,7 +177,7 @@ class Game():
 		self.creatures.append(c)
 		player = self.players[player_number-1]
 		if self.print_moves:
-			print "> {} {} SUMMONED a {}/{} BEAR.".format(player.__class__.__name__, self.players.index(player), c.strength, c.hit_points)
+			print "> {} {} SUMMONED a {}/{} NEST ROBBER.".format(player.__class__.__name__, self.players.index(player), c.strength, c.hit_points)
 
 	def summon_bull(self, player_number):
 		"""Summon a creature that attacks every turn and has haste, for player_number."""
@@ -167,7 +185,7 @@ class Game():
 		self.creatures.append(c)
 		player = self.players[player_number-1]
 		if self.print_moves:
-			print "> {} {} SUMMONED a {}/{} BULL.".format(player.__class__.__name__, self.players.index(player), c.strength, c.hit_points)
+			print "> {} {} SUMMONED a {}/{} BRAZEN SCOURGE.".format(player.__class__.__name__, self.players.index(player), c.strength, c.hit_points)
 
 	def edict(self, player_number):
 		"""Remove a creature from player_number, FIFO for now."""
@@ -192,12 +210,50 @@ class Game():
 			print "> {} {} WRATHED, {} creatures died.".format(current_player.__class__.__name__, self.players.index(current_player), len(self.creatures))
 		self.creatures = []
 
+	def announce_attackers(self, player_number):
+		attackers = []
+		current_player = self.players[player_number-1]
+		opponent = self.opponent(current_player)
+		for creature in self.creatures:
+			if creature.owner == player_number:
+				attackers.append(creature)
+				"print found an attacker"
+
+		self.attackers = attackers
+		self.current_player_number = 2 if self.current_player_number == 1 else 1
+		self.is_my_turn = False
+
+	def assign_blockers(self, player_number):
+		self.assigned_blockers = True
+		self.blockers = []
+		self.current_player_number = 2 if self.current_player_number == 1 else 1
+		self.is_my_turn = True
+
+	def resolve_combat(self, player_number):
+		self.assigned_blockers = False
+		total_attack = 0
+		current_player = self.players[player_number-1]
+		opponent = self.opponent(current_player)
+		for creature in self.attackers:
+			opponent.hit_points -= creature.strength
+			total_attack += creature.strength
+
+		if self.print_moves:
+			if total_attack > 0:
+				print "> {} {} ATTACKED for {}.".format(current_player.__class__.__name__, self.players.index(current_player), total_attack)
+
+		self.attackers = []
+		self.blockers = []
+		self.attacked = True
+
 	def do_move(self, move):
 		"""Do the move and increment the turn."""
-		if self.current_player_number == 1 and self.print_moves:
-			print "Turn {}".format(self.current_turn)
 		eval("self.{}".format(move[0]))(move[1])
-		self.end_turn()
+		player = self.players[self.current_player_number -1]
+		player.current_mana -= move[2]
+
+		player.states.append(self.state_repr())
+		self.opponent(player).states.append(self.state_repr())
 
 	def current_player(self, state):
 		"""The player_number of the player due to make move in state."""
@@ -206,19 +262,43 @@ class Game():
 	def next_state(self, state, play):
 		"""Returns a new state after applying the play to state."""
 		players = [
-			Bot(starting_hit_points=state[2], starting_mana=state[3]), 
-			Bot(starting_hit_points=state[4], starting_mana=state[5])
+			Bot(starting_hit_points=state[2], starting_mana=state[3], current_mana=state[4]), 
+			Bot(starting_hit_points=state[5], starting_mana=state[6], current_mana=state[7])
 		]
+		current_player = self.players[state[0] - 1]
 		clone_game = Game(players)
+		players[0].states = self.players[0].states
+		players[1].states = self.players[1].states
 		clone_game.current_player_number = state[0]
 		clone_game.current_turn = state[1]
-		
-		for creature_tuple in state[6]:
+		clone_game.played_land = state[8]
+		clone_game.is_my_turn = state[9]
+		clone_game.assigned_blockers = state[10]
+
+		for creature_tuple in state[11]:
 			c = Creature(creature_tuple[0], strength=creature_tuple[1], hit_points=creature_tuple[2])
 			clone_game.creatures.append(c)
 
+		for creature_tuple in state[12]:
+			c = Creature(creature_tuple[0], strength=creature_tuple[1], hit_points=creature_tuple[2])
+			clone_game.attackers.append(c)
+
+		for creature_tuple in state[13]:
+			c = Creature(creature_tuple[0], strength=creature_tuple[1], hit_points=creature_tuple[2])
+			clone_game.blockers.append(c)
+
 		eval("clone_game.{}".format(play[0]))(play[1])
-		clone_game.end_turn()
+
+		if play[0] == "announce_attackers":
+			clone_game.assign_blockers(0)
+			clone_game.resolve_combat(state[0])
+
+		'''
+
+
+		#if play[0] == "assign_blockers":
+		#	clone_game.resolve_combat(state[0])
+		'''
 
 		return clone_game.state_repr()
 
@@ -229,28 +309,51 @@ class Game():
 		moving_player = game_state[0]
 		opponent = 2 if moving_player == 1 else 1
 
-		possible_moves = [('buff_mana', moving_player, available_mana),]
+		if not self.is_my_turn:
+			return [('assign_blockers', moving_player, 0),]
+
+		if self.assigned_blockers:
+			return [('resolve_combat', moving_player, 0),]
+
+		possible_moves = [('pass_the_turn', moving_player, 0)]
+
+		if not self.played_land:
+			possible_moves.append(('play_tapped_land', moving_player, available_mana))
+
+		#if available_mana > 0:
+		#	possible_moves.append(('fireball', [moving_player, opponent], available_mana))
+
+		has_attackers = False
+		for c in self.creatures:
+			if c.owner == moving_player:
+				has_attackers = True
+				break
+		if has_attackers and len(self.attackers) == 0 and not self.attacked:
+			possible_moves.append(('announce_attackers', moving_player, 0))
 
 		methods = [('summon_bear', moving_player, 2), 
-	               ('summon_bull', moving_player, 3), 
-	               ('edict', opponent, 1), 
-	               ('wrath', opponent, 2), 
-	               ('blast_player', [moving_player, opponent], available_mana), 
-	               ('bolt', opponent, 1),
+	               #('summon_bull', moving_player, 3), 
+	               #('edict', opponent, 1), 
+	               #('wrath', opponent, 2), 
+	               #('bolt', opponent, 2),
 		]
 		for method in methods:
 			if method[2] <= available_mana:
 				possible_moves.append(method+tuple())
-		
+
 		return possible_moves
 
 
 	def winner(self, state_history):
 		"""Returns -1 if the state_history is drawn, 0 if the game is ongoing, else the player_number of the winner."""
 		current_state = state_history[-1]
-		players = [Bot(starting_hit_points=current_state[2], starting_mana=current_state[3]), 
-							Bot(starting_hit_points=current_state[4], starting_mana=current_state[5])]
+
+		players = [Bot(starting_hit_points=current_state[2], starting_mana=current_state[3], current_mana=current_state[4]), 
+				  Bot(starting_hit_points=current_state[5], starting_mana=current_state[6], current_mana=current_state[7])]
+		current_player = self.players[self.current_player_number - 1]
 		clone_game = Game(players)
+		players[0].states = current_player.states
+		players[1].states = self.opponent(current_player).states
 		clone_game.current_player_number = current_state[0]
 		clone_game.current_turn = current_state[1]
 

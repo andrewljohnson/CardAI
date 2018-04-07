@@ -7,13 +7,14 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(MonteCarloBot):
-	def __init__(self, starting_hit_points=0, starting_mana=0, max_moves=200, simulation_time=10, C=3.5):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=1000, simulation_time=30, C=3.5, states=[]):
 
 		# previous states the game has been in
-		self.states = []
+		self.states = states
 
 		# the starting stats for the bot
 		self.mana = starting_mana
+		self.current_mana = current_mana
 		self.hit_points = starting_hit_points
 
 		# the amount of time to call run_simulation as much as possible 		
@@ -32,13 +33,15 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 	def play_move(self, game):
 		"""Play a move in game and append it to self.states."""
 		move = self.get_play()
-		self.states.append(game.next_state(game.state_repr(), move))
+		print game.state_repr()
 		game.do_move(move)
 
 	def get_play(self):
 		"""Return the best play after simulating possible plays and updating the plays and wins stats."""
 		state = self.states[-1]
-		legal = self.board.legal_plays(self.states[:], self.mana)
+		legal = self.board.legal_plays(self.states[:], self.current_mana)
+
+		print "legal plays are {}".format(legal)
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
@@ -65,7 +68,6 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 		)
 
 		# Display the stats for each possible play.
-		'''
 		for x in sorted(
 			((100 * self.wins.get((player, S), 0) * 1.0 /
 				self.plays.get((player, S), 1),
@@ -76,7 +78,7 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 		):
 			print "{3}: {0:.2f}% ({1} / {2})".format(*x)
 		'''
-
+		'''
 		return move
 
 	def run_simulation(self):
@@ -91,9 +93,9 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
-			legal = self.board.legal_plays(states_copy, self.mana)
+			legal = self.board.legal_plays(states_copy, self.current_mana)
+			# print "{} {}".format(t, legal)
 			moves_states = [(p, self.board.next_state(state, p)) for p in legal]
-
 			if all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
 				log_total = log(
