@@ -311,15 +311,12 @@ class Game():
 			RandomBot(starting_hit_points=state[5], starting_mana=state[6], current_mana=state[7])
 		]
 		clone_game = Game(players)
-		#players[0].states = self.players[0].states
-		#players[1].states = self.players[1].states
 		clone_game.current_player_number = state[0]
 		clone_game.current_turn = state[1]
 		clone_game.played_land = state[8]
 		clone_game.player_with_priority = state[9]
 		clone_game.assigned_blockers = state[10]
 		clone_game.attacked = state[11]
-		# clone_game.print_moves = True
 
 		for creature_tuple in state[12]:
 			c = Creature(creature_tuple[1], strength=creature_tuple[2], hit_points=creature_tuple[3], guid=creature_tuple[0])
@@ -337,16 +334,16 @@ class Game():
 
 	def legal_plays(self, state_history, available_mana):
 		"""Returns a list of all legal moves given the state_history. We only use the most recent state in state_history for now."""
-
 		game_state = state_history[-1]
 		clone_game = self.game_for_state(game_state)
 		moving_player = game_state[9]
 		opponent = 2 if moving_player == 1 else 1
 
 		if clone_game.player_with_priority != clone_game.current_player_number:
+			#TODO IMPLEMENT BLOCKING
 			possible_moves = [('finish_blocking', moving_player, 0)]
-			
 			return possible_moves
+
 			blockers = []
 			for c in clone_game.creatures:
 				if c.owner == clone_game.player_with_priority:
@@ -361,7 +358,6 @@ class Game():
 
 			possible_blocks = itertools.product(clone_game.attackers, blocker_combos)
 			for block in possible_blocks:
-				# print "block: {}".format(block)
 				possible_moves.append(('assign_blockers', block, 0))
 
 			return possible_moves
@@ -394,11 +390,12 @@ class Game():
 					if len(subset) > 0:
 						possible_moves.append(('announce_attackers', subset, 0))
 
-		methods = [('summon_bear', moving_player, 2), 
-								 #('summon_bull', moving_player, 2), 
-								 #('edict', opponent, 1), 
-								 #('wrath', opponent, 1), 
-								 #('shock', opponent, 1),
+		methods = [
+			('summon_bear', moving_player, 2), 
+			 #('summon_bull', moving_player, 2), 
+			 #('edict', opponent, 1), 
+			 #('wrath', opponent, 1), 
+			 #('shock', opponent, 1),
 		]
 		for method in methods:
 			if method[2] <= available_mana:

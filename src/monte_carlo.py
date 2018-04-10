@@ -26,7 +26,6 @@ class MonteCarloBot(Bot):
 		
 	def calc_win_rate(self, game, move_index, iterations):
 		""" Returns a percentage times the move won. """
-		
 		wins = 0
 		losses = 0
 

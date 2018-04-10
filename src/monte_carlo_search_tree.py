@@ -40,8 +40,6 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 		state = self.states[-1]
 		legal = self.board.legal_plays(self.states[:], self.current_mana)
 
-		# print "murps legal plays are {}".format(legal)
-
 		# Bail out early if there is no real choice to be made.
 		if not legal:
 			return []
@@ -79,10 +77,6 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 			print "{3}: {0:.2f}% ({1} / {2})".format(*x)
 		'''
 
-
-		#for play in self.plays:
-		#	print play
-
 		return move
 
 	def run_simulation(self):
@@ -97,7 +91,6 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
-			#self.board.print_state(state)
 			curr_play_num = state[9]
 			curr_player_mana = 0
 			if curr_play_num == 1:
@@ -106,9 +99,6 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 				curr_player_mana = state[7]
 
 			legal = self.board.legal_plays(states_copy, curr_player_mana)
-			#print "sim legal plays are {}".format(legal)
-			# self.board.print_state_repr()
-
 			moves_states = [(p, self.board.next_state(state, p)) for p in legal]
 			if all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
@@ -119,16 +109,11 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 					 self.C * sqrt(log_total / plays[(player, S)]), p, S)
 					for p, S in moves_states
 				)
-				#print "not arbitrary"
 			else:
 				# Otherwise, just make an arbitrary decision.
 				move, state = choice(moves_states)
-				#print "arbitrary"
 			# print "moving to state {}".format(state)
 			states_copy.append(state)
-
-			#print "move chose is {}".format(move)
-			#print "state moved to is {}".format(state)
 
 			# `player` here and below refers to the player
 			# who moved into that particular state.
