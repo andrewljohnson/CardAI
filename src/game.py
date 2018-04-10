@@ -335,8 +335,6 @@ class Game():
 
 		return clone_game
 
-
-
 	def legal_plays(self, state_history, available_mana):
 		"""Returns a list of all legal moves given the state_history. We only use the most recent state in state_history for now."""
 
@@ -347,6 +345,7 @@ class Game():
 
 		if clone_game.player_with_priority != clone_game.current_player_number:
 			possible_moves = [('finish_blocking', moving_player, 0)]
+			
 			return possible_moves
 			blockers = []
 			for c in clone_game.creatures:
@@ -406,7 +405,6 @@ class Game():
 				possible_moves.append(method+tuple())
 
 		return possible_moves
-
 
 	def winner(self, state_history):
 		"""Returns -1 if the state_history is drawn, 0 if the game is ongoing, else the player_number of the winner."""
