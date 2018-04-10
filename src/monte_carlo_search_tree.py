@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(MonteCarloBot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=200, simulation_time=5, C=1.4, states=[]):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=200, simulation_time=2, C=1.4, states=[]):
 
 		# previous states the game has been in
 		self.states = states

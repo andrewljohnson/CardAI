@@ -25,6 +25,8 @@ class Game():
 		# a hashable list of creatures
 		self.creatures = []
 
+		self.ready_creatures = []
+
 		self.attackers = []
 
 		self.blockers = []
@@ -60,6 +62,7 @@ class Game():
 						self.assigned_blockers, 
 						self.attacked, 
 						tuple([c.state_repr() for c in self.creatures]),
+						tuple([c.state_repr() for c in self.ready_creatures]),
 						tuple(self.attackers),
 						tuple(self.blockers),
 						tuple(self.blocks))
@@ -72,7 +75,7 @@ class Game():
 			clone_game.played_land, clone_game.assigned_blockers)
 		print "PLAYER 1: {} hp {}/{} mana, PLAYER 2: {} hp {}/{} mana".format(clone_game.players[0].hit_points, clone_game.players[0].current_mana, clone_game.players[0].mana,
 			clone_game.players[1].hit_points, clone_game.players[1].current_mana, clone_game.players[1].mana)
-		print "creatures: {}, attackers: {}, blockers: {}".format(tuple([c.state_repr() for c in clone_game.creatures]), tuple([c for c in clone_game.attackers]),
+		print "creatures: {}, ready_creatures: {}, attackers: {}, blockers: {}".format(tuple([c.state_repr() for c in clone_game.creatures]), tuple([c.state_repr() for c in clone_game.ready_creatures]), tuple([c for c in clone_game.attackers]),
 			tuple([c for c in clone_game.blockers]))
 
 	def play_out(self):
@@ -110,6 +113,8 @@ class Game():
 		self.player_with_priority = self.current_player_number
 		self.assigned_blockers = False
 		self.attacked = False
+
+		self.ready_creatures = self.creatures[:]
 
 		if self.print_moves:
 			print "End of Turn {}".format(self.current_turn)
@@ -157,23 +162,24 @@ class Game():
 				
 		return dead_players
 
-	def fireball(self, player_numbers):
+	def fireball(self, info):
 		"""Decrement hit_points equal to blaster's mana from blastee."""
-		blaster = self.players[player_numbers[0]-1]
-		blastee = self.players[player_numbers[1]-1]
+		blaster = self.players[info[0] - 1]
+		current_mana = info[1]
+		blastee = self.opponent(blaster)
 		"""Remove hit points from player."""
-		blastee.hit_points -= blaster.current_mana - 2
+		blastee.hit_points -= (current_mana - 1)
 		if self.print_moves:
-			print "> {} {} FIREBALLED for {} damage!".format(blaster.__class__.__name__,	self.players.index(blaster), blaster.current_mana)
+			print "> {} {} FIREBALLED for {} damage!".format(blaster.__class__.__name__,	self.players.index(blaster), current_mana - 1)
 
-	def bolt(self, player_number):
+	def shock(self, player_number):
 		"""Decrement some damage from player_number."""
 		player = self.players[player_number-1]
 		damage = 2
 		player.hit_points -= damage
 		opponent = self.opponent(player)
 		if self.print_moves:
-			print "> {} {} BOLTED for {} damage!".format(opponent.__class__.__name__, self.players.index(opponent), damage)
+			print "> {} {} SHOCKED for {} damage!".format(opponent.__class__.__name__, self.players.index(opponent), damage)
 
 	def play_tapped_land(self, player_number):
 		"""Increment a mana from player_number."""
@@ -195,7 +201,7 @@ class Game():
 		self.creatures.append(c)
 		if self.print_moves:
 			player = self.players[player_number-1]
-			print "> {} {} SUMMONED a {}/{} NEST ROBBER.".format(player.__class__.__name__, self.players.index(player), c.strength, c.hit_points)
+			print "> {} {} SUMMONED a {}/{} BEAR.".format(player.__class__.__name__, self.players.index(player), c.strength, c.hit_points)
 
 	def summon_bull(self, player_number):
 		"""Summon a creature that attacks every turn and has haste, for player_number."""
@@ -204,7 +210,7 @@ class Game():
 		self.creatures.append(c)
 		if self.print_moves:
 			player = self.players[player_number-1]
-			print "> {} {} SUMMONED a {}/{} BRAZEN SCOURGE.".format(player.__class__.__name__, self.players.index(player), c.strength, c.hit_points)
+			print "> {} {} SUMMONED a {}/{} GIANT.".format(player.__class__.__name__, self.players.index(player), c.strength, c.hit_points)
 
 	def edict(self, player_number):
 		"""Remove a creature from player_number, FIFO for now."""
@@ -220,6 +226,7 @@ class Game():
 			current_player = self.opponent(opponent)
 			print "> {} {} EDICTED.".format(current_player.__class__.__name__, self.players.index(current_player))
 		self.creatures = new_creatures
+		self.ready_creatures = new_creatures[:]
 
 	def wrath(self, player_number):
 		"""Remove aall creature for player_number."""
@@ -228,6 +235,7 @@ class Game():
 			current_player = self.opponent(opponent)
 			print "> {} {} WRATHED, {} creatures died.".format(current_player.__class__.__name__, self.players.index(current_player), len(self.creatures))
 		self.creatures = []
+		self.ready_creatures = []
 
 	def announce_attackers(self, attackers):
 		self.attackers = attackers
@@ -317,9 +325,13 @@ class Game():
 			c = Creature(creature_tuple[1], strength=creature_tuple[2], hit_points=creature_tuple[3], guid=creature_tuple[0])
 			clone_game.creatures.append(c)
 
-		clone_game.attackers = list(state[13])
-		clone_game.blockers = list(state[14])
-		clone_game.blocks = list(state[15])
+		for creature_tuple in state[13]:
+			c = Creature(creature_tuple[1], strength=creature_tuple[2], hit_points=creature_tuple[3], guid=creature_tuple[0])
+			clone_game.ready_creatures.append(c)
+
+		clone_game.attackers = list(state[14])
+		clone_game.blockers = list(state[15])
+		clone_game.blocks = list(state[16])
 
 		return clone_game
 
@@ -363,18 +375,18 @@ class Game():
 		if not clone_game.played_land:
 			possible_moves.append(('play_tapped_land', moving_player, 0))
 
-		#if available_mana > 0:
-		#	possible_moves.append(('fireball', [moving_player, opponent], available_mana))
+		if available_mana > 1:
+			possible_moves.append(('fireball', (moving_player, available_mana), available_mana))
 
 		has_attackers = False
-		for c in clone_game.creatures:
+		for c in clone_game.ready_creatures:
 			if c.owner == moving_player:
 				has_attackers = True
 				break
 		
 		if has_attackers and len(clone_game.attackers) == 0 and not clone_game.attacked:
 			attackers = []
-			for creature in clone_game.creatures:
+			for creature in clone_game.ready_creatures:
 				if creature.owner == moving_player:
 					attackers.append(creature.guid)
 
@@ -383,11 +395,11 @@ class Game():
 					if len(subset) > 0:
 						possible_moves.append(('announce_attackers', subset, 0))
 
-		methods = [('summon_bear', moving_player, 1), 
+		methods = [('summon_bear', moving_player, 2), 
 								 #('summon_bull', moving_player, 2), 
 								 #('edict', opponent, 1), 
 								 #('wrath', opponent, 1), 
-								 #('bolt', opponent, 1),
+								 #('shock', opponent, 1),
 		]
 		for method in methods:
 			if method[2] <= available_mana:
