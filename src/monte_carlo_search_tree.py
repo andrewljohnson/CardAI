@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(MonteCarloBot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=100, simulation_time=1, C=1.4, states=[]):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=500, simulation_time=1, C=1.4, states=[]):
 
 		# previous states the game has been in
 		self.states = states
@@ -65,6 +65,7 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 		)
 
 		# Display the stats for each possible play.
+		'''
 		for x in sorted(
 			((100 * self.wins.get((player, S), 0) * 1.0 /
 				self.plays.get((player, S), 1),
@@ -74,7 +75,6 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 			reverse=True
 		):
 			print "{3}: {0:.2f}% ({1} / {2})".format(*x)
-		'''
 		'''
 
 		return move
@@ -122,8 +122,9 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 
 			player = self.board.acting_player(state)
 			winner = self.board.winner(states_copy)
-			if winner > 0:
+			if winner >= 0:
 				break
+
 
 		for player, state in visited_states:
 			if (player, state) not in plays:

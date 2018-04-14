@@ -464,10 +464,10 @@ class Game():
 		clone_game = self.game_for_state(current_state)
 
 		if clone_game.game_is_drawn():
-			return -1
+			return -2
 
 		if len(clone_game.dead_players()) == 0:
-			return 0
+			return -1
 
 		winning_player, _, _ = clone_game.winning_player()
 
