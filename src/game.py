@@ -471,7 +471,7 @@ class Game():
 
 		winning_player, _, _ = clone_game.winning_player()
 
-		return clone_game.players.index(winning_player)+1
+		return clone_game.players.index(winning_player)
 
 
 class Creature():

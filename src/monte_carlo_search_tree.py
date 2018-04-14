@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(MonteCarloBot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=100, simulation_time=.1, C=1.4, states=[]):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=100, simulation_time=1, C=1.4, states=[]):
 
 		# previous states the game has been in
 		self.states = states
@@ -125,7 +125,6 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 			if winner > 0:
 				break
 
-		print "visited states {}".format(visited_states)
 		for player, state in visited_states:
 			if (player, state) not in plays:
 				continue
