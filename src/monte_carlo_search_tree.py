@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(MonteCarloBot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=200, simulation_time=2, C=1.4, states=[]):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=500, simulation_time=1, C=1.4, states=[]):
 
 		# previous states the game has been in
 		self.states = states
@@ -31,7 +31,7 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 		self.plays = {}
 
 	def play_move(self, game):
-		"""Play a move in game and append it to self.states."""
+		"""Play a move in game."""
 		move = self.get_play()
 		game.do_move(move)
 
@@ -54,7 +54,7 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 
 		moves_states = [(p, self.board.next_state(state, p)) for p in legal]
 
-		player = self.board.current_player(state)
+		player = self.board.acting_player(state)
 
 		# Pick the move with the highest percentage of wins.
 		percent_wins, move = max(
@@ -87,16 +87,12 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 		visited_states = set()
 		states_copy = self.states[:]
 		state = states_copy[-1]
-		player = self.board.current_player(state)
+		player = self.board.acting_player(state)
 
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
-			curr_play_num = state[9]
-			curr_player_mana = 0
-			if curr_play_num == 1:
-				curr_player_mana = state[4]
-			else:
-				curr_player_mana = state[7]
+			curr_play_num = state[2]
+			curr_player_mana = state[7][curr_play_num][2]
 
 			legal = self.board.legal_plays(states_copy, curr_player_mana)
 			moves_states = [(p, self.board.next_state(state, p)) for p in legal]
@@ -112,7 +108,7 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 			else:
 				# Otherwise, just make an arbitrary decision.
 				move, state = choice(moves_states)
-			# print "moving to state {}".format(state)
+
 			states_copy.append(state)
 
 			# `player` here and below refers to the player
@@ -124,10 +120,11 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 
 			visited_states.add((player, state))
 
-			player = self.board.current_player(state)
+			player = self.board.acting_player(state)
 			winner = self.board.winner(states_copy)
-			if winner > 0:
+			if winner >= 0:
 				break
+
 
 		for player, state in visited_states:
 			if (player, state) not in plays:
