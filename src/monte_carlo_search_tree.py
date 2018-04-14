@@ -108,7 +108,7 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 			else:
 				# Otherwise, just make an arbitrary decision.
 				move, state = choice(moves_states)
-			# print "moving to state {}".format(state)
+
 			states_copy.append(state)
 
 			# `player` here and below refers to the player
@@ -125,6 +125,7 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 			if winner > 0:
 				break
 
+		print "visited states {}".format(visited_states)
 		for player, state in visited_states:
 			if (player, state) not in plays:
 				continue

@@ -58,8 +58,8 @@ class Game():
 				self.creature_id, 
 				self.phase, 
 				(
-					(self.players[0].hit_points, self.players[0].mana, self.players[0].current_mana), 
-					(self.players[1].hit_points, self.players[1].mana, self.players[1].current_mana)
+					(self.players[0].hit_points, self.players[0].mana, self.players[0].current_mana,), 
+					(self.players[1].hit_points, self.players[1].mana, self.players[1].current_mana,),
 				), 
 				tuple([c.state_repr() for c in self.creatures]),
 				tuple(self.ready_creatures),
