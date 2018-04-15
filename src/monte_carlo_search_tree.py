@@ -7,7 +7,15 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=200, simulation_time=5, C=1.4, states=[]):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=200, simulation_time=30, C=14, states=[]):
+		"""
+			Max moves is 20, because it was observed that this helps you find fast wins, and ignore unlikely hundred-term plans.
+			
+			This will probably be tweaked
+
+			For C, sqrt(2) would be the theoretically correct choice, but higher if we want more exploration and less focus on good moves.
+		"""
+
 
 		super(MonteCarloSearchTreeBot, self).__init__(starting_hit_points=starting_hit_points, current_mana=current_mana, starting_mana=starting_mana, hand=[])
 
@@ -106,6 +114,7 @@ class MonteCarloSearchTreeBot(Bot):
 				# Otherwise, just make an arbitrary decision.
 				move, state = choice(moves_states)
 
+			# print "moved to sim state {}".format(state)
 			states_copy.append(state)
 
 			# `player` here and below refers to the player
@@ -116,7 +125,6 @@ class MonteCarloSearchTreeBot(Bot):
 				wins[(player, state)] = 0
 
 			visited_states.add((player, state))
-
 			player = self.board.acting_player(state)
 			winner = self.board.winner(states_copy)
 			if winner >= 0:
