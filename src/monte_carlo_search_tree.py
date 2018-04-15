@@ -15,11 +15,9 @@ class MonteCarloSearchTreeBot(Bot):
 
 			For C, sqrt(2) would be the theoretically correct choice, but higher if we want more exploration and less focus on good moves.
 		"""
-
-
 		super(MonteCarloSearchTreeBot, self).__init__(starting_hit_points=starting_hit_points, current_mana=current_mana, starting_mana=starting_mana, hand=[])
 
-		# previous states the game has been in
+    # previous states the game has been in
 		self.states = states
 
 		# the amount of time to call run_simulation as much as possible 		

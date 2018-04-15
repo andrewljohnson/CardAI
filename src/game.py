@@ -401,7 +401,6 @@ class Game():
 		else:
 			player.current_mana -= move[2]
 			eval("self.{}".format(move[0]))(move[1])
-
 		state_rep = self.state_repr()
 		player.states.append(state_rep)
 		self.opponent(player).states.append(state_rep)
@@ -450,7 +449,8 @@ class Game():
 
 		if available_mana > 1:
 			# possible_moves.append(('fireball', (game.player_with_priority, available_mana), available_mana))
-			for c in game.creatures:
+
+      for c in game.creatures:
 				for mana in range(2, available_mana):
 					possible_moves.append(('fireball_creature', (c.guid, mana), mana))
 		
