@@ -1,21 +1,18 @@
 """Implements MCST, based on https://jeffbradberry.com/posts/2015/09/intro-to-monte-carlo-tree-search/"""
 
 import datetime
-from monte_carlo import MonteCarloBot
+from bot import Bot
 from math import log, sqrt
 from random import choice
 
 
-class MonteCarloSearchTreeBot(MonteCarloBot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=500, simulation_time=1, C=1.4, states=[]):
+class MonteCarloSearchTreeBot(Bot):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=200, simulation_time=5, C=1.4, states=[]):
+
+		super(MonteCarloSearchTreeBot, self).__init__(starting_hit_points=starting_hit_points, current_mana=current_mana, starting_mana=starting_mana, hand=[])
 
 		# previous states the game has been in
 		self.states = states
-
-		# the starting stats for the bot
-		self.mana = starting_mana
-		self.current_mana = current_mana
-		self.hit_points = starting_hit_points
 
 		# the amount of time to call run_simulation as much as possible 		
 		self.calculation_time = datetime.timedelta(seconds=simulation_time)
@@ -65,7 +62,6 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 		)
 
 		# Display the stats for each possible play.
-		'''
 		for x in sorted(
 			((100 * self.wins.get((player, S), 0) * 1.0 /
 				self.plays.get((player, S), 1),
@@ -75,6 +71,7 @@ class MonteCarloSearchTreeBot(MonteCarloBot):
 			reverse=True
 		):
 			print "{3}: {0:.2f}% ({1} / {2})".format(*x)
+		'''
 		'''
 
 		return move
