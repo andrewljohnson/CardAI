@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=100, simulation_time=5, C=1.4, states=[]):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=100, simulation_time=1, C=1.4, states=[]):
 		"""
 			Max moves is 20, because it was observed that this helps you find fast wins, and ignore unlikely hundred-term plans.
 			

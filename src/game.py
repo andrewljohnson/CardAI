@@ -244,7 +244,7 @@ class Game():
 
 	def summon_bear(self, player_number):
 		"""Summon a creature that attacks every turn and has haste, for player_number."""
-		c = Creature(player_number, strength=5, hit_points=2, guid=self.creature_id)
+		c = Creature(player_number, strength=2, hit_points=2, guid=self.creature_id)
 		self.creature_id += 1
 		self.creatures.append(c)
 		if self.print_moves:
