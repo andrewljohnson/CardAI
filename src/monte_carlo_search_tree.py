@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=200, simulation_time=30, C=1.4, states=[]):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=100, simulation_time=5, C=1.4, states=[]):
 		"""
 			Max moves is 20, because it was observed that this helps you find fast wins, and ignore unlikely hundred-term plans.
 			
@@ -17,7 +17,7 @@ class MonteCarloSearchTreeBot(Bot):
 		"""
 		super(MonteCarloSearchTreeBot, self).__init__(starting_hit_points=starting_hit_points, current_mana=current_mana, starting_mana=starting_mana, hand=[])
 
-    # previous states the game has been in
+    	# previous states the game has been in
 		self.states = states
 
 		# the amount of time to call run_simulation as much as possible 		
@@ -112,7 +112,7 @@ class MonteCarloSearchTreeBot(Bot):
 				# Otherwise, just make an arbitrary decision.
 				move, state = choice(moves_states)
 
-			# print "moved to sim state {}".format(state)
+			# print "moved {} to sim state {}".format(move, state)
 			states_copy.append(state)
 
 			# `player` here and below refers to the player
@@ -128,6 +128,8 @@ class MonteCarloSearchTreeBot(Bot):
 			if winner >= 0:
 				break
 
+
+		# print "{} moves, {} winner, STATE AFTER SIM {}".format(t, winner, state)
 
 		for player, state in visited_states:
 			if (player, state) not in plays:

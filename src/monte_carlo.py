@@ -6,7 +6,7 @@ from rando import RandomBot
 
 
 class MonteCarloBot(Bot):
-	def play_move(self, game, iterations=20):
+	def play_move(self, game, iterations=100):
 		"""Plays the move in game that wins the most over the test iterations."""
 		scores = []
 		move_index = 0

@@ -132,7 +132,6 @@ class Game():
 		while not self.game_is_over():
 			player = self.players[self.player_with_priority]
 			player.play_move(self)
-			print self.state_repr()
 
 		if self.print_moves:
 			if self.game_is_over():
@@ -219,8 +218,8 @@ class Game():
 		creature = self.creature_with_guid(info[0])
 		mana_to_use = info[1]
 		if (mana_to_use - 1) >= creature.hit_points:
-			if info[0] in self.attackers:
-				self.attackers.remove(info[0])
+			if creature.guid in self.attackers:
+				self.attackers.remove(creature.guid)
 			self.creatures.remove(creature)
 			if creature.guid in self.ready_creatures:
 				self.ready_creatures.remove(creature.guid)
@@ -245,7 +244,7 @@ class Game():
 
 	def summon_bear(self, player_number):
 		"""Summon a creature that attacks every turn and has haste, for player_number."""
-		c = Creature(player_number, strength=2, hit_points=2, guid=self.creature_id)
+		c = Creature(player_number, strength=5, hit_points=2, guid=self.creature_id)
 		self.creature_id += 1
 		self.creatures.append(c)
 		if self.print_moves:
@@ -393,7 +392,7 @@ class Game():
 		"""Do the move and increment the turn."""
 		player = self.players[self.player_with_priority]
 		if move[0] == 'play_land':
-			player_number = move[1]
+			player_number = self.player_with_priority
 			card_index = move[2]
 			method_name = move[3]
 			card = self.players[player_number].hand[card_index]
@@ -413,7 +412,7 @@ class Game():
 		"""Returns a new state after applying the move to state."""
 		clone_game = self.game_for_state(state)
 		if move[0] == 'play_land':
-			player_number = move[1]
+			player_number = clone_game.player_with_priority
 			card_index = move[2]
 			method_name = move[3]
 			card = clone_game.players[player_number].hand[card_index]
@@ -448,10 +447,10 @@ class Game():
 				card_types_added.append(card.__class__)
 
 		if available_mana > 1:
-			# possible_moves.append(('fireball', (game.player_with_priority, available_mana), available_mana))
-
-      for c in game.creatures:
-				for mana in range(2, available_mana):
+			for mana in range(2, available_mana+1):
+				possible_moves.append(('fireball', (game.player_with_priority, available_mana), available_mana))
+			for c in game.creatures:
+				for mana in range(2, available_mana+1):
 					possible_moves.append(('fireball_creature', (c.guid, mana), mana))
 		
 		available_attackers = []
@@ -469,7 +468,7 @@ class Game():
 		methods = [
 			('summon_bear', game.player_with_priority, 2), 
 			 #('summon_bull', game.player_with_priority, 2), 
-			 #('edict', opponent, 1), 
+			 #('edict', opponent, 3), 
 			 #('wrath', opponent, 1), 
 			 #('shock', opponent, 1),
 		]
