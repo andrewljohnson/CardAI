@@ -18,7 +18,7 @@ def create_parser():
 		default=[2, 0],
 		nargs=2,
 		type=int,
-		help="list of 2 players - types are 0 = plays randomly, 1 = monte carlo, 2 = mcst, defaults 2 0"
+		help="list of 2 players - defaults 2 0 - 0: plays randomly, 1: monte carlo, 2: mcst"
 	)
 	parser.add_argument(
 		"--starting_hit_points",
@@ -38,10 +38,12 @@ def main():
 		'MonteCarloSearchTreeBot'
 	]
 	game = Game()
-	game.add_player(eval("{}".format(bots_types[args.players[0]]))(starting_hit_points=args.starting_hit_points))
-	game.add_player(eval("{}".format(bots_types[args.players[1]]))(starting_hit_points=args.starting_hit_points))
+	for pid in args.players:
+		bot = eval("{}".format(bots_types[pid]))(starting_hit_points=args.starting_hit_points)
+		game.add_player(bot)
 	game.print_moves = True
 	game.play_out()
+
 
 if __name__ == "__main__":
 	main()
