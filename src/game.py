@@ -42,7 +42,8 @@ class Game():
 		# gets incremented everytime a card is played, used as the id for each new card
 		self.new_card_id = 0
 
-		# can be setup, draw, precombat, declare_attackers, declare_blockers, combat_resolution, or postcombat
+		# can be setup, draw, precombat, declare_attackers, declare_blockers, 
+		# combat_resolution, or postcombat
 		self.phase = "setup"
 
 		# a list of previous states the game has been in
@@ -75,10 +76,19 @@ class Game():
 			cards = []
 			for card_tuple in player_tuple[3]:
 				cards.append(eval("{}".format(card_tuple[0]))(card_tuple[2], card_id=card_tuple[1]))
-			clone_game.add_player(Bot(starting_hit_points=player_tuple[0], starting_mana=player_tuple[1], current_mana=player_tuple[2], hand=cards))
+			clone_game.add_player(Bot(
+										starting_hit_points=player_tuple[0], 
+									 	starting_mana=player_tuple[1], 
+									 	current_mana=player_tuple[2], 
+									 	hand=cards))
 
 		for creature_tuple in state[6]:
-			c = Creature(creature_tuple[1], creature_tuple[4], strength=creature_tuple[2], hit_points=creature_tuple[3], creature_id=creature_tuple[0])
+			c = Creature(
+							creature_tuple[1], 
+							creature_tuple[4], 
+							strength=creature_tuple[2], 
+							hit_points=creature_tuple[3], 
+							creature_id=creature_tuple[0])
 			clone_game.creatures.append(c)
 
 		clone_game.attackers = list(state[7])
@@ -93,10 +103,38 @@ class Game():
 		player.game = self
 
 
-	"""Bot protocol methods after this. These are: winner, acting_player, next_state, and legal_plays."""
+	"""
+		Bot protocol methods after this. These are: 
+
+			play_out, winner, acting_player, next_state, legal_plays.
+	"""
+
+
+	def play_out(self):
+		"""Play out a game between two bots."""
+		while not self.game_is_over():
+			player = self.players[self.player_with_priority]
+			player.play_move(self)
+
+		winner, winning_hp, losing_hp = self.winning_player()
+		if self.print_moves:
+			if self.game_is_drawn():
+				print "Game Over - Draw"
+			else:
+				print "Game Over - {} {} wins! Final hit points are {} to {}." \
+					.format(winner.__class__.__name__, 
+							self.players.index(winner), 
+							winning_hp, 
+							losing_hp)
+
+		return winner
 
 	def winner(self, state_history):
-		"""Return -1 if the state_history is drawn, 0 if the game is ongoing, else the player_number of the winner."""
+		"""
+			Return -1 if the state_history is drawn, 0 if the game is ongoing, 
+		
+			else the player_number of the winner.
+		"""
 		current_state = state_history[-1]
 		clone_game = self.game_for_state(current_state)
 
@@ -111,7 +149,11 @@ class Game():
 		return clone_game.players.index(winning_player)
 
 	def winning_player(self):
-		"""Return the winning player, hp of winning player, and hp of losing player. Returns None, None, None on draws."""
+		"""
+			Return the winning player, hp of winning player, and hp of losing player. 
+
+			Returns None, None, None on draws.
+		"""
 		if self.game_is_drawn():
 			return None, None, None
 		losing_hp = None
@@ -189,7 +231,12 @@ class Game():
 				return p
 
 	def legal_plays(self, state_history, available_mana):
-		"""Return a list of all legal moves given the state_history. We only use the most recent state in state_history for now."""
+		"""
+			Return a list of all legal moves given the state_history. 
+		
+			We only use the most recent state in state_history for now.
+		"""
+		
 		game_state = state_history[-1]
 		game = self.game_for_state(game_state)
 
@@ -239,7 +286,11 @@ class Game():
 		if self.print_moves:
 			current_player = self.players[moving_player]
 			hand_strings = [type(c).__name__ for c in current_player.hand]
-			print "> {} {} DREW HER HAND: {} ({} cards).".format(current_player.__class__.__name__, self.players.index(current_player), hand_strings, len(current_player.hand))	 		
+			print "> {} {} DREW HER HAND: {} ({} cards)." \
+				.format(current_player.__class__.__name__, 
+						self.players.index(current_player), 
+						hand_strings, 
+						len(current_player.hand))	 		
 		if self.player_with_priority == self.current_turn_player():
 			self.player_with_priority = self.not_current_turn_player()
 		else:	
@@ -267,7 +318,10 @@ class Game():
 			self.phase = "precombat"
 
 		if self.print_moves and self.phase != 'setup':
-			print "> {} {} DREW {}.".format(current_player.__class__.__name__, self.players.index(current_player), type(new_card).__name__)	 		
+			print "> {} {} DREW {}." \
+				.format(current_player.__class__.__name__, 
+						self.players.index(current_player), 
+						type(new_card).__name__)	 		
 
 	def available_cards(self, moving_player):
 		"""All possible cards in the game."""
@@ -282,7 +336,9 @@ class Game():
 		self.attackers = attackers
 		if self.print_moves:
 			current_player = self.players[self.player_with_priority]
-			print "> {} {} ANNOUNCED ATTACK.".format(current_player.__class__.__name__, self.players.index(current_player))
+			print "> {} {} ANNOUNCED ATTACK." \
+				.format(current_player.__class__.__name__, 
+						self.players.index(current_player))
 		self.player_with_priority = self.not_current_turn_player()
 		self.phase = "declare_blockers"
 
@@ -294,13 +350,19 @@ class Game():
 
 		if self.print_moves:
 			current_player = self.players[self.player_with_priority]
-			print "> {} {} BLOCKED {} with {}.".format(current_player.__class__.__name__, self.players.index(current_player), block_tuple[0], block_tuple[1])
+			print "> {} {} BLOCKED {} with {}." \
+				.format(current_player.__class__.__name__, 
+					self.players.index(current_player), 
+					block_tuple[0], 
+					block_tuple[1])
 
 	def finish_blocking(self, player_number):
 		"""Shift priority to the defending player and update the phase."""
 		if self.print_moves:
 			current_player = self.players[self.player_with_priority]
-			print "> {} {} FINISHED BLOCKING.".format(current_player.__class__.__name__, self.players.index(current_player))
+			print "> {} {} FINISHED BLOCKING." \
+				.format(current_player.__class__.__name__, 
+						self.players.index(current_player))
 
 		self.phase = 'combat_resolution'
 		self.player_with_priority = self.current_turn_player()
@@ -343,9 +405,16 @@ class Game():
 
 		if self.print_moves:
 			if total_attack > 0:
-				print "> {} {} ATTACKED for {}, {} killed.".format(current_player.__class__.__name__, self.players.index(current_player), total_attack, dead_creatures)
+				print "> {} {} ATTACKED for {}, {} killed." \
+					.format(current_player.__class__.__name__,
+							self.players.index(current_player),
+							total_attack,
+							dead_creatures)
 			else:
-				print "> {} {} ATTACKED, {} killed.".format(current_player.__class__.__name__, self.players.index(current_player), dead_creatures)
+				print "> {} {} ATTACKED, {} killed." \
+					.format(current_player.__class__.__name__, 
+							self.players.index(current_player), 
+							dead_creatures)
 
 		self.attackers = []
 		self.blockers = []
@@ -400,19 +469,3 @@ class Game():
 			possible_moves.append(('assign_blockers', block, 0))
 
 		return possible_moves
-
-	def play_out(self):
-		"""Play out a game between two bots."""
-		while not self.game_is_over():
-			player = self.players[self.player_with_priority]
-			player.play_move(self)
-
-		winner, winning_hp, losing_hp = self.winning_player()
-		if self.print_moves:
-			if self.game_is_drawn():
-				print "Game Over - Draw"
-			else:
-				print "Game Over - {} {} wins! Final hit points are {} to {}.".format(winner.__class__.__name__, self.players.index(winner), winning_hp, losing_hp)
-
-		return winner
-

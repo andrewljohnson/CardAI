@@ -7,15 +7,21 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=120, simulation_time=5, C=1.4):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=120, 
+		simulation_time=5, C=1.4):
 		"""
-			Max moves is 20, because it was observed that this helps you find fast wins, and ignore unlikely hundred-term plans.
-			
-			This will probably be tweaked
+			Adjust simulation_time and max_moves to taste.
 
-			For C, sqrt(2) would be the theoretically correct choice, but higher if we want more exploration and less focus on good moves.
+			For C, sqrt(2) would be the theoretically correct choice, 
+
+			but higher if we want more exploration and less focus on good moves.
 		"""
-		super(MonteCarloSearchTreeBot, self).__init__(starting_hit_points=starting_hit_points, current_mana=current_mana, starting_mana=starting_mana, hand=[])
+		super(MonteCarloSearchTreeBot, self) \
+			.__init__(
+						starting_hit_points=starting_hit_points, 
+						current_mana=current_mana, 
+						starting_mana=starting_mana, 
+						hand=[])
 
 		# the amount of time to call run_simulation as much as possible 		
 		self.calculation_time = datetime.timedelta(seconds=simulation_time)
@@ -23,7 +29,8 @@ class MonteCarloSearchTreeBot(Bot):
 		# the max_moves for any simulation
 		self.max_moves = max_moves
 		
-		# Larger C encourages more exploration of the possibilities, smaller causes the AI to prefer concentrating on known good moves
+		# Larger C encourages more exploration of the possibilities, 
+		# smaller causes the AI to prefer concentrating on known good moves
 		self.C = C
 
 		# statistics about previously simulated game states
@@ -36,7 +43,11 @@ class MonteCarloSearchTreeBot(Bot):
 		game.do_move(move)
 
 	def get_play(self):
-		"""Return the best play after simulating possible plays and updating the plays and wins stats."""
+		"""
+			Return the best play,
+
+			after simulating possible plays and updating plays and wins stats.
+		"""
 		state = self.game.states[-1]
 		legal = self.game.legal_plays(self.game.states[:], self.current_mana)
 
