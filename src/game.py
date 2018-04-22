@@ -37,8 +37,6 @@ class Game():
 
 		self.played_land = False
 
-		self.attacked = False
-
 		# gets incremented everytime a card is played, used as the id for each new card
 		self.new_card_id = 0
 
@@ -54,7 +52,6 @@ class Game():
 		return (self.current_turn, 
 				self.played_land, 
 				self.player_with_priority, 
-				self.attacked, 
 				self.new_card_id, 
 				self.phase, 
 				(
@@ -70,25 +67,24 @@ class Game():
 
 	def game_for_state(self, state):
 		players = [
-			RandomBot(starting_hit_points=state[6][0][0], starting_mana=state[6][0][1], current_mana=state[6][0][2], hand=self.cards_for_hand_state_repr(state[6][0][3])), 
-			RandomBot(starting_hit_points=state[6][1][0], starting_mana=state[6][1][1], current_mana=state[6][1][2], hand=self.cards_for_hand_state_repr(state[6][1][3])), 
+			RandomBot(starting_hit_points=state[5][0][0], starting_mana=state[5][0][1], current_mana=state[5][0][2], hand=self.cards_for_hand_state_repr(state[5][0][3])), 
+			RandomBot(starting_hit_points=state[5][1][0], starting_mana=state[5][1][1], current_mana=state[5][1][2], hand=self.cards_for_hand_state_repr(state[5][1][3])), 
 		]
 		clone_game = Game(players)
 		clone_game.current_turn = state[0]
 		clone_game.played_land = state[1]
 		clone_game.player_with_priority = state[2]
-		clone_game.attacked = state[3]
-		clone_game.new_card_id = state[4]
-		clone_game.phase = state[5]
+		clone_game.new_card_id = state[3]
+		clone_game.phase = state[4]
 
-		for creature_tuple in state[7]:
+		for creature_tuple in state[6]:
 			c = Creature(creature_tuple[1], strength=creature_tuple[2], hit_points=creature_tuple[3], guid=creature_tuple[0])
 			clone_game.creatures.append(c)
 
-		clone_game.ready_creatures = list(state[8])
-		clone_game.attackers = list(state[9])
-		clone_game.blockers = list(state[10])
-		clone_game.blocks = list(state[11])
+		clone_game.ready_creatures = list(state[7])
+		clone_game.attackers = list(state[8])
+		clone_game.blockers = list(state[9])
+		clone_game.blocks = list(state[10])
 
 		return clone_game
 
@@ -239,7 +235,8 @@ class Game():
 
 		possible_moves = [('pass_the_turn', game.player_with_priority, 0)]
 		possible_moves = game.add_card_actions(game, possible_moves)
-		possible_moves = game.add_attack_actions(game, possible_moves)
+		if game.phase == "precombat":
+			possible_moves = game.add_attack_actions(game, possible_moves)
 		return possible_moves
 
 	def add_card_actions(self, game, possible_moves):
@@ -257,7 +254,7 @@ class Game():
 			if creature.owner == game.player_with_priority:
 				available_attackers.append(guid)
 		
-		if len(available_attackers) > 0 and len(game.attackers) == 0 and not game.attacked:
+		if len(available_attackers) > 0 and len(game.attackers) == 0:
 			for L in range(0, len(available_attackers)+1):
 				for subset in itertools.combinations(available_attackers, L):
 					if len(subset) > 0:
@@ -305,7 +302,6 @@ class Game():
 			current_player = self.players[self.player_with_priority]
 			print "> {} {} ANNOUNCED ATTACK.".format(current_player.__class__.__name__, self.players.index(current_player))
 		self.player_with_priority = self.not_current_turn_player()
-		self.attacked = True
 
 	def assign_blockers(self, block_tuple):
 		self.blocks.append(block_tuple)
@@ -325,7 +321,7 @@ class Game():
 		self.player_with_priority = self.current_turn_player()
 
 	def resolve_combat(self, player_number):
-		self.phase = 'post_combat'
+		self.phase = 'postcombat'
 		total_attack = 0
 		current_player = self.players[player_number]
 		opponent = self.opponent(current_player)
@@ -390,7 +386,6 @@ class Game():
 		player.current_mana = player.mana
 		self.played_land = False
 		self.player_with_priority = self.current_turn_player()
-		self.attacked = False
 
 		self.ready_creatures = [c.guid for c in self.creatures]
 		self.phase = "draw"

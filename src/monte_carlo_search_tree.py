@@ -95,7 +95,7 @@ class MonteCarloSearchTreeBot(Bot):
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
 			curr_play_num = state[2]
-			curr_player_mana = state[6][curr_play_num][2]
+			curr_player_mana = state[5][curr_play_num][2]
 
 			legal = self.board.legal_plays(states_copy, curr_player_mana)
 			# print "legal: {}".format(legal)
