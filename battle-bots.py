@@ -4,9 +4,9 @@
 
 
 import argparse
+from src.bot import Bot
 from src.monte_carlo import MonteCarloBot
 from src.monte_carlo_search_tree import MonteCarloSearchTreeBot
-from src.rando import RandomBot
 from src.game import Game
 
 
@@ -33,15 +33,13 @@ def main():
 	"""Play two bots and print the results."""
 	args = create_parser().parse_args()
 	bots_types = [
-		'RandomBot',
+		'Bot',
 		'MonteCarloBot',
 		'MonteCarloSearchTreeBot'
 	]
-	game = Game([
-		eval("{}".format(bots_types[args.players[0]]))(starting_hit_points=args.starting_hit_points),
-		eval("{}".format(bots_types[args.players[1]]))(starting_hit_points=args.starting_hit_points)
-
-		])
+	game = Game()
+	game.add_player(eval("{}".format(bots_types[args.players[0]]))(starting_hit_points=args.starting_hit_points))
+	game.add_player(eval("{}".format(bots_types[args.players[1]]))(starting_hit_points=args.starting_hit_points))
 	game.print_moves = True
 
 	while not game.game_is_over():

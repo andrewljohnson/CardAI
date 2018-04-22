@@ -1,15 +1,19 @@
+"""Card encapsulates the actions of a fantasy card."""
+
 class Card(object):
 	"""A fantasy card instance."""
 
-	def __init__(self, owner, guid=None):		
-		self.guid = guid
+	def __init__(self, owner, card_id=None):	
+		"""Set the initial card_id and owner."""	
+		self.id = card_id
 
 		# the player_number of the owner
 		self.owner = owner
 
 	def state_repr(self):
+		"""Return a hashable tuple representing the Card."""
 		return (self.__class__.__name__,
-				self.guid, 
+				self.id, 
 			 	self.owner, 
 		)
 
@@ -17,23 +21,19 @@ class Card(object):
 class AnyManaLand(Card):
 	"""A card that produces any color mana."""
 
-	def __init__(self, owner, guid=None):
-		super(AnyManaLand, self).__init__(owner, guid=guid)
-
 	def possible_moves(self, game):
+		"""Returns [] if the player already played a land, other returns the action to play tapped."""
 		if game.played_land:
 			return []
 		card_index = game.players[game.player_with_priority].hand.index(self)
 		return [('card-land', card_index, 0, None)]
 
 	def play(self, game, mana_to_use, target_creature_id):
-		"""Increment a mana from player_number."""
+		"""Increment mana for the player with priority."""
 		player = game.players[game.player_with_priority]
 		player.mana += 1
 		game.played_land = True
-
 		player.hand.remove(self)
-
 		if game.print_moves:
 			print "> {} {} played a TAPPED LAND!".format(player.__class__.__name__, game.players.index(player))
 
@@ -41,10 +41,8 @@ class AnyManaLand(Card):
 class Fireball(Card):
 	"""A card that deal X damage to anything."""
 
-	def __init__(self, owner, guid=None):
-		super(Fireball, self).__init__(owner, guid=guid)
-
 	def possible_moves(self, game):
+		"""Returns possible fireballs targets and amounts."""
 		available_mana = game.players[game.player_with_priority].current_mana
 		possible_moves = []
 		card_index = game.players[game.player_with_priority].hand.index(self)
@@ -54,7 +52,7 @@ class Fireball(Card):
 				possible_moves.append(('card-fireball', card_index, mana, None))
 			for c in game.creatures:
 				for mana in range(2, available_mana+1):
-					possible_moves.append(('card-fireball-creature', card_index, mana, c.guid))
+					possible_moves.append(('card-fireball-creature', card_index, mana, c.id))
 		return possible_moves
 
 	def play(self, game, mana_to_use, target_creature_id):
@@ -64,18 +62,16 @@ class Fireball(Card):
 
 		if target_creature_id:
 			blaster = game.players[game.player_with_priority]
-			creature = game.creature_with_guid(target_creature_id)
+			creature = game.creature_with_id(target_creature_id)
 			if (mana_to_use - 1) >= creature.hit_points:
-				if creature.guid in game.attackers:
-					game.attackers.remove(creature.guid)
+				if creature.id in game.attackers:
+					game.attackers.remove(creature.id)
 				game.creatures.remove(creature)
-				if creature.guid in game.ready_creatures:
-					game.ready_creatures.remove(creature.guid)
 			else:
 				creature.hit_points -= (mana_to_use - 1)
 
 			if game.print_moves:
-				print "> {} {} FIREBALLED CREATURE {} for {} damage!".format(blaster.__class__.__name__, game.players.index(blaster), creature.guid, mana_to_use - 1)
+				print "> {} {} FIREBALLED CREATURE {} for {} damage!".format(blaster.__class__.__name__, game.players.index(blaster), creature.id, mana_to_use - 1)
 		else:
 			blastee = game.opponent(blaster)
 			blastee.hit_points -= (mana_to_use - 1)
@@ -87,10 +83,8 @@ class Fireball(Card):
 class Bear(Card):
 	"""A 2/2 creature."""
 
-	def __init__(self, owner, guid=None):
-		super(Bear, self).__init__(owner, guid=guid)
-
 	def possible_moves(self, game):
+		"""Returns [] if the player has less than 2 man, other returns the action to play the bear."""
 		available_mana = game.players[game.player_with_priority].current_mana
 		if available_mana > 1:
 			card_index = game.players[game.player_with_priority].hand.index(self)
@@ -98,10 +92,12 @@ class Bear(Card):
 		return []
 
 	def play(self, game, mana_to_use, target_creature_id):
-		c = Creature(game.player_with_priority, strength=2, hit_points=2, guid=game.new_card_id)
+		"""Summon the bear for the player_with_priority."""
+		c = Creature(game.player_with_priority, strength=5, hit_points=1, creature_id=game.new_card_id)
 		summoner = game.players[game.player_with_priority]
 		summoner.hand.remove(self)
 		game.new_card_id += 1
+		c.turn_played = game.current_turn
 		game.creatures.append(c)
 		if game.print_moves:
 			player = game.players[game.player_with_priority]
@@ -111,9 +107,10 @@ class Bear(Card):
 class Creature():
 	"""A fantasy creature card instance."""
 
-	def __init__(self, owner, strength=0, hit_points=0, guid=None):
+	def __init__(self, owner, strength=0, hit_points=0, creature_id=None):
 		
-		self.guid = guid
+		# an id that is unique among creatures in the game
+		self.id = creature_id
 
 		# the player_number of the owner
 		self.owner = owner
@@ -124,49 +121,17 @@ class Creature():
 		# how many hit_points this takes to kill it
 		self.hit_points = hit_points
 
+		# the turn number this came into play
+		self.turn_played = None
+
 	def state_repr(self):
-		return (self.guid, 
+		"""Return a hashable representation of the creature."""
+		return (self.id, 
 			 	self.owner, 
 			 	self.strength, 
 				self.hit_points
 		)
 
-''' NEW CARD CODE FOR LATER
-
-	def shock(self, player_number):
-		"""Decrement some damage from player_number."""
-		player = self.players[player_number]
-		damage = 2
-		player.hit_points -= damage
-		opponent = self.opponent(player)
-		if self.print_moves:
-			print "> {} {} SHOCKED for {} damage!".format(opponent.__class__.__name__, self.players.index(opponent), damage)
-
-	def edict(self, player_number):
-		"""Remove a creature from player_number, FIFO for now."""
-		new_creatures = []
-		killed = False
-		killed_guid = None
-		for c in self.creatures:
-			if not killed and c.owner == player_number:
-				killed = True
-				killed_guid = c.guid
-			else:
-				new_creatures.append(c)
-		if self.print_moves:
-			opponent = self.players[player_number]
-			current_player = self.opponent(opponent)
-			print "> {} {} EDICTED.".format(current_player.__class__.__name__, self.players.index(current_player))
-		self.creatures = new_creatures
-		if killed_guid in self.ready_creatures:
-			self.ready_creatures.remove(killed_guid)
-
-	def wrath(self, player_number):
-		"""Remove all creature for player_number."""
-		if self.print_moves:
-			opponent = self.players[player_number]
-			current_player = self.opponent(opponent)
-			print "> {} {} WRATHED, {} creatures died.".format(current_player.__class__.__name__, self.players.index(current_player), len(self.creatures))
-		self.creatures = []
-		self.ready_creatures = []
-'''
+	def can_attack(self, game):
+		"""Returns False if the creature was summoned this turn."""
+		return self.turn_played < game.current_turn

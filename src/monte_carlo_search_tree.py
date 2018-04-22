@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=100, simulation_time=5, C=1.4, states=[]):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=120, simulation_time=5, C=1.4):
 		"""
 			Max moves is 20, because it was observed that this helps you find fast wins, and ignore unlikely hundred-term plans.
 			
@@ -16,9 +16,6 @@ class MonteCarloSearchTreeBot(Bot):
 			For C, sqrt(2) would be the theoretically correct choice, but higher if we want more exploration and less focus on good moves.
 		"""
 		super(MonteCarloSearchTreeBot, self).__init__(starting_hit_points=starting_hit_points, current_mana=current_mana, starting_mana=starting_mana, hand=[])
-
-    	# previous states the game has been in
-		self.states = states
 
 		# the amount of time to call run_simulation as much as possible 		
 		self.calculation_time = datetime.timedelta(seconds=simulation_time)
@@ -40,8 +37,8 @@ class MonteCarloSearchTreeBot(Bot):
 
 	def get_play(self):
 		"""Return the best play after simulating possible plays and updating the plays and wins stats."""
-		state = self.states[-1]
-		legal = self.board.legal_plays(self.states[:], self.current_mana)
+		state = self.game.states[-1]
+		legal = self.game.legal_plays(self.game.states[:], self.current_mana)
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
@@ -55,9 +52,9 @@ class MonteCarloSearchTreeBot(Bot):
 			self.run_simulation()
 			games += 1
 
-		moves_states = [(p, self.board.next_state(state, p)) for p in legal]
+		moves_states = [(p, self.game.next_state(state, p)) for p in legal]
 
-		player = self.board.acting_player(state)
+		player = self.game.acting_player(state)
 
 		# Pick the move with the highest percentage of wins.
 		percent_wins, move = max(
@@ -67,8 +64,8 @@ class MonteCarloSearchTreeBot(Bot):
 			for p, S in moves_states
 		)
 
-		# Display the stats for each possible play.
 		'''
+		# Display the stats for each possible play.
 		for x in sorted(
 			((100 * self.wins.get((player, S), 0) * 1.0 /
 				self.plays.get((player, S), 1),
@@ -88,18 +85,18 @@ class MonteCarloSearchTreeBot(Bot):
 		plays, wins = self.plays, self.wins
 
 		visited_states = set()
-		states_copy = self.states[:]
+		states_copy = self.game.states[:]
 		state = states_copy[-1]
-		player = self.board.acting_player(state)
+		player = self.game.acting_player(state)
 
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
 			curr_play_num = state[2]
 			curr_player_mana = state[5][curr_play_num][2]
 
-			legal = self.board.legal_plays(states_copy, curr_player_mana)
+			legal = self.game.legal_plays(states_copy, curr_player_mana)
 			# print "legal: {}".format(legal)
-			moves_states = [(p, self.board.next_state(state, p)) for p in legal]
+			moves_states = [(p, self.game.next_state(state, p)) for p in legal]
 			if all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
 				log_total = log(
@@ -124,11 +121,10 @@ class MonteCarloSearchTreeBot(Bot):
 				wins[(player, state)] = 0
 
 			visited_states.add((player, state))
-			player = self.board.acting_player(state)
-			winner = self.board.winner(states_copy)
+			player = self.game.acting_player(state)
+			winner = self.game.winner(states_copy)
 			if winner >= 0:
 				break
-
 
 		# print "{} moves, {} winner, STATE AFTER SIM {}".format(t, winner, state)
 

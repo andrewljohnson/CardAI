@@ -1,21 +1,19 @@
-"""Game encapsulates the rules and state of a game."""
+"""Game encapsulates the rules and state of a fantasy card game, and interface with bots."""
 
 import itertools
 from bot import Bot
 from card import AnyManaLand, Bear, Creature, Fireball
-from rando import RandomBot
 from random import choice
-
 
 
 class Game():
 	"""A fantasy card game instance."""
 
-	def __init__(self, players):
+	def __init__(self):
 		"""Set the list of players, and set the current_player to the first player."""
 
-		# a list of two Bot subclass players
-		self.players = players
+		# a list of Bot subclass players
+		self.players = []
 
 		# whether to print each move, typically False during simulation, but true for a real game
 		self.print_moves = False 
@@ -23,29 +21,32 @@ class Game():
 		# the current turn, switches after each player takes their full turn
 		self.current_turn = 0
 
+		# a list of Creature objects in play
 		self.creatures = []
 
-		self.ready_creatures = []
-
+		# a list of ids for declared attackers
 		self.attackers = []
 
+		# a list of ids for declared blockers
 		self.blockers = []
 
+		# a list of dicts keying a single attacking creature id to a list of blocking creature ids
 		self.blocks = []
 
+		# the index of the player in self.players who currently has priority
 		self.player_with_priority = 0
 
+		# whether or a not a land was played yet this turn
 		self.played_land = False
 
 		# gets incremented everytime a card is played, used as the id for each new card
 		self.new_card_id = 0
 
-		# can be setup, draw, precombat, attack, or postcombat
+		# can be setup, draw, precombat, declare_attackers, declare_blockers, combat_resolution, or postcombat
 		self.phase = "setup"
 
-		for p in players:
-			p.board = self
-			p.states = [self.state_repr()]
+		# a list of previous states the game has been in
+		self.states = [self.state_repr()]
 
 	def state_repr(self):
 		"""A hashable representation of the game state."""
@@ -54,104 +55,48 @@ class Game():
 				self.player_with_priority, 
 				self.new_card_id, 
 				self.phase, 
-				(
-					(self.players[0].hit_points, self.players[0].mana, self.players[0].current_mana, self.tuple_for_hand(self.players[0].hand)), 
-					(self.players[1].hit_points, self.players[1].mana, self.players[1].current_mana, self.tuple_for_hand(self.players[1].hand)),
-				), 
+				tuple([p.state_repr() for p in self.players]),
 				tuple([c.state_repr() for c in self.creatures]),
-				tuple(self.ready_creatures),
 				tuple(self.attackers),
 				tuple(self.blockers),
 				tuple(self.blocks),
 		)
 
 	def game_for_state(self, state):
-		players = [
-			RandomBot(starting_hit_points=state[5][0][0], starting_mana=state[5][0][1], current_mana=state[5][0][2], hand=self.cards_for_hand_state_repr(state[5][0][3])), 
-			RandomBot(starting_hit_points=state[5][1][0], starting_mana=state[5][1][1], current_mana=state[5][1][2], hand=self.cards_for_hand_state_repr(state[5][1][3])), 
-		]
-		clone_game = Game(players)
+		"""Return a Game for a state tuple."""
+		clone_game = Game()
 		clone_game.current_turn = state[0]
 		clone_game.played_land = state[1]
 		clone_game.player_with_priority = state[2]
 		clone_game.new_card_id = state[3]
 		clone_game.phase = state[4]
 
+		for player_tuple in state[5]:
+			cards = []
+			for card_tuple in player_tuple[3]:
+				cards.append(eval("{}".format(card_tuple[0]))(card_tuple[2], card_id=card_tuple[1]))
+			clone_game.add_player(Bot(starting_hit_points=player_tuple[0], starting_mana=player_tuple[1], current_mana=player_tuple[2], hand=cards))
+
 		for creature_tuple in state[6]:
-			c = Creature(creature_tuple[1], strength=creature_tuple[2], hit_points=creature_tuple[3], guid=creature_tuple[0])
+			c = Creature(creature_tuple[1], strength=creature_tuple[2], hit_points=creature_tuple[3], creature_id=creature_tuple[0])
 			clone_game.creatures.append(c)
 
-		clone_game.ready_creatures = list(state[7])
-		clone_game.attackers = list(state[8])
-		clone_game.blockers = list(state[9])
-		clone_game.blocks = list(state[10])
+		clone_game.attackers = list(state[7])
+		clone_game.blockers = list(state[8])
+		clone_game.blocks = list(state[9])
 
 		return clone_game
 
-	def print_state(self, state):
-		"""A human readable way to print the game state."""
-		clone_game = self.game_for_state(state)
-		print "TURN: {}, Current Player: {}, Priority: {}, played_land: {}".format(
-			clone_game.current_turn, clone_game.current_turn_player(), clone_game.player_with_priority,
-			clone_game.played_land)
-		print "PLAYER 1: {} hp {}/{} mana, PLAYER 2: {} hp {}/{} mana".format(clone_game.players[0].hit_points, clone_game.players[0].current_mana, clone_game.players[0].mana,
-			clone_game.players[1].hit_points, clone_game.players[1].current_mana, clone_game.players[1].mana)
-		print "creatures: {}, ready_creatures: {}, attackers: {}, blockers: {}".format(tuple([c.state_repr() for c in clone_game.creatures]), tuple([c for c in clone_game.ready_creatures]), tuple([c for c in clone_game.attackers]),
-			tuple([c for c in clone_game.blockers]))
-
-	def tuple_for_hand(self, hand):
-		cards = []
-		for card in hand:
-			cards.append(card.state_repr())
-		return tuple(cards)
-
-	def cards_for_hand_state_repr(self, hand_tuple):
-		cards = []
-		for card_state_repr in hand_tuple:
-			cards.append(self.card_for_state_repr(card_state_repr))
-		return cards
-
-	def card_for_state_repr(self, card_tuple):
-		return eval("{}".format(card_tuple[0]))(card_tuple[2], guid=card_tuple[1])
-
-	def current_turn_player(self):
-		return self.current_turn % 2
-
-	def not_current_turn_player(self):
-		return (self.current_turn + 1) % 2
+	def add_player(self, player):
+		"""Add a player to the game and set its game."""
+		self.players.append(player)
+		player.game = self
 
 
-	"""Card protocol methods after this. These are: do_move."""
-
-	def do_move(self, move):
-		"""Do the move and increment the turn."""
-		player = self.players[self.player_with_priority]
-		if move[0].startswith('card'):
-			player_number = self.player_with_priority
-			target_creature = move[3]
-			mana_to_use = move[2]
-			card_index = move[1]
-			method_name = move[0]
-			card = self.players[player_number].hand[card_index]
-			player.current_mana -= mana_to_use
-			card.play(self, mana_to_use, target_creature)
-		else:
-			player.current_mana -= move[2]
-			eval("self.{}".format(move[0]))(move[1])
-		state_rep = self.state_repr()
-		player.states.append(state_rep)
-		self.opponent(player).states.append(state_rep)
-
-	def opponent(self, player):
-		"""Return the player that isn't the given player."""
-		for p in self.players:
-			if p != player:
-				return p
-
-	"""MCST protocol methods after this. These are: winner, acting_player, next_state, and legal_plays."""
+	"""Bot protocol methods after this. These are: winner, acting_player, next_state, and legal_plays."""
 
 	def winner(self, state_history):
-		"""Returns -1 if the state_history is drawn, 0 if the game is ongoing, else the player_number of the winner."""
+		"""Return -1 if the state_history is drawn, 0 if the game is ongoing, else the player_number of the winner."""
 		current_state = state_history[-1]
 		clone_game = self.game_for_state(current_state)
 
@@ -166,7 +111,7 @@ class Game():
 		return clone_game.players.index(winning_player)
 
 	def winning_player(self):
-		"""Returns the winning player, hp of winning player, and hp of losing player. Returns None, None, None on draws."""
+		"""Return the winning player, hp of winning player, and hp of losing player. Returns None, None, None on draws."""
 		if self.game_is_drawn():
 			return None, None, None
 		losing_hp = None
@@ -199,11 +144,11 @@ class Game():
 		return dead_players
 
 	def acting_player(self, state):
-		"""The player_number of the player due to make move in state."""
+		"""Return the player_number of the player due to make move in state."""
 		return state[2]
 
 	def next_state(self, state, move):
-		"""Returns a new state after applying the move to state."""
+		"""Return a new state after applying the move to state."""
 		clone_game = self.game_for_state(state)
 		if move[0].startswith('card'):
 			player_number = clone_game.player_with_priority
@@ -219,8 +164,32 @@ class Game():
 			eval("clone_game.{}".format(move[0]))(move[1])
 		return clone_game.state_repr()
 
+	def do_move(self, move):
+		"""Do the move and increment the turn."""
+		player = self.players[self.player_with_priority]
+		if move[0].startswith('card'):
+			player_number = self.player_with_priority
+			target_creature = move[3]
+			mana_to_use = move[2]
+			card_index = move[1]
+			method_name = move[0]
+			card = self.players[player_number].hand[card_index]
+			player.current_mana -= mana_to_use
+			card.play(self, mana_to_use, target_creature)
+		else:
+			player.current_mana -= move[2]
+			eval("self.{}".format(move[0]))(move[1])
+		state_rep = self.state_repr()
+		self.states.append(state_rep)
+
+	def opponent(self, player):
+		"""Return the player that isn't the given player."""
+		for p in self.players:
+			if p != player:
+				return p
+
 	def legal_plays(self, state_history, available_mana):
-		"""Returns a list of all legal moves given the state_history. We only use the most recent state in state_history for now."""
+		"""Return a list of all legal moves given the state_history. We only use the most recent state in state_history for now."""
 		game_state = state_history[-1]
 		game = self.game_for_state(game_state)
 
@@ -228,10 +197,10 @@ class Game():
 			return [('initial_draw', game.player_with_priority, 0),]			
 		elif game.phase == "draw":
 			return [('draw_card', game.player_with_priority, 0),]			
+		elif game.phase == "declare_blockers":
+			return game.all_legal_blocks()
 		elif game.phase == "combat_resolution":
 			return [('resolve_combat', game.player_with_priority, 0),]
-		elif game.player_with_priority != game.current_turn_player():
-			return game.all_legal_blocks()
 
 		possible_moves = [('pass_the_turn', game.player_with_priority, 0)]
 		possible_moves = game.add_card_actions(game, possible_moves)
@@ -240,6 +209,7 @@ class Game():
 		return possible_moves
 
 	def add_card_actions(self, game, possible_moves):
+		"""Return a list of possible actions based on the player_with_priority's hand."""
 		card_types_added = []
 		for card in game.players[game.player_with_priority].hand:
 			if card.__class__ not in card_types_added:
@@ -248,11 +218,11 @@ class Game():
 		return possible_moves
 
 	def add_attack_actions(self, game, possible_moves):
+		"""Return a list of possible actions based on the player_with_priority's creatures."""
 		available_attackers = []
-		for guid in game.ready_creatures:
-			creature = game.creature_with_guid(guid)
-			if creature.owner == game.player_with_priority:
-				available_attackers.append(guid)
+		for creature in game.creatures:
+			if creature.owner == game.player_with_priority and creature.can_attack(game):
+				available_attackers.append(creature.id)
 		
 		if len(available_attackers) > 0 and len(game.attackers) == 0:
 			for L in range(0, len(available_attackers)+1):
@@ -263,12 +233,13 @@ class Game():
 		return possible_moves
 
 	def initial_draw(self, moving_player):
-		# print self.state_repr()
-	 	for i in range(0,3):
+		"""Add some cards to each player's hand."""
+	 	for i in range(0,7):
 	 		self.draw_card(moving_player);
 		if self.print_moves:
 			current_player = self.players[moving_player]
-			print "> {} {} DREW HER HAND ({} cards).".format(current_player.__class__.__name__, self.players.index(current_player), len(current_player.hand))	 		
+			hand_strings = [type(c).__name__ for c in current_player.hand]
+			print "> {} {} DREW HER HAND: {} ({} cards).".format(current_player.__class__.__name__, self.players.index(current_player), hand_strings, len(current_player.hand))	 		
 		if self.player_with_priority == self.current_turn_player():
 			self.player_with_priority = self.not_current_turn_player()
 		else:	
@@ -277,14 +248,16 @@ class Game():
 			if self.print_moves:
 				print "End of initial draw SETUP"
 
-	def available_cards(self, moving_player):
-		return [
-			AnyManaLand(moving_player, guid=self.new_card_id),
-			Fireball(moving_player, guid=self.new_card_id),
-			Bear(moving_player, guid=self.new_card_id),
-		]
+	def current_turn_player(self):
+		"""The index in self.players for the player whose turn it is. """
+		return self.current_turn % 2
+
+	def not_current_turn_player(self):
+		"""The index in self.players for the player whose turn it isn't. """
+		return (self.current_turn + 1) % 2
 
 	def draw_card(self, moving_player):
+		"""Add a card to moving_player's hand."""
 		new_card = choice(self.available_cards(moving_player))
 		current_player = self.players[moving_player]
 		current_player.hand.append(new_card)
@@ -293,17 +266,28 @@ class Game():
 		if self.phase == "draw":
 			self.phase = "precombat"
 
-		if self.print_moves:
-			print "> {} {} DREW {}.".format(current_player.__class__.__name__, self.players.index(current_player), new_card.__class__)	 		
+		if self.print_moves and self.phase != 'setup':
+			print "> {} {} DREW {}.".format(current_player.__class__.__name__, self.players.index(current_player), type(new_card).__name__)	 		
+
+	def available_cards(self, moving_player):
+		"""All possible cards in the game."""
+		return [
+			AnyManaLand(moving_player, card_id=self.new_card_id),
+			Fireball(moving_player, card_id=self.new_card_id),
+			Bear(moving_player, card_id=self.new_card_id),
+		]
 
 	def announce_attackers(self, attackers):
+		"""Set attackers, shift priority to the defending player, and update the phase."""
 		self.attackers = attackers
 		if self.print_moves:
 			current_player = self.players[self.player_with_priority]
 			print "> {} {} ANNOUNCED ATTACK.".format(current_player.__class__.__name__, self.players.index(current_player))
 		self.player_with_priority = self.not_current_turn_player()
+		self.phase = "declare_blockers"
 
 	def assign_blockers(self, block_tuple):
+		"""Set blockers according to block_tiple that maps an attacker to multiple bloickers."""
 		self.blocks.append(block_tuple)
 		for blocker in block_tuple[1]:
 			self.blockers.append(blocker)
@@ -313,6 +297,7 @@ class Game():
 			print "> {} {} BLOCKED {} with {}.".format(current_player.__class__.__name__, self.players.index(current_player), block_tuple[0], block_tuple[1])
 
 	def finish_blocking(self, player_number):
+		"""Shift priority to the defending player and update the phase."""
 		if self.print_moves:
 			current_player = self.players[self.player_with_priority]
 			print "> {} {} FINISHED BLOCKING.".format(current_player.__class__.__name__, self.players.index(current_player))
@@ -321,33 +306,34 @@ class Game():
 		self.player_with_priority = self.current_turn_player()
 
 	def resolve_combat(self, player_number):
+		"""Deal damage, remove any dead creatures, check for winners, and go to postcombat phase.""" 
 		self.phase = 'postcombat'
 		total_attack = 0
 		current_player = self.players[player_number]
 		opponent = self.opponent(current_player)
 		dead_creatures = []
 
-		for guid in self.attackers:
+		for creature_id in self.attackers:
 			attacker = None
 			is_blocked = False 
-			attacker = self.creature_with_guid(guid)
+			attacker = self.creature_with_id(creature_id)
 			attacker_strength_to_apportion = attacker.strength
 
 			for block in self.blocks:
-				if block[0] == guid:
+				if block[0] == creature_id:
 					# is blocked, continue
 					damage_to_attacker = 0
 					creature = None
 					is_blocked = True
-					for blocker_guid in block[1]:
-						blocker = self.creature_with_guid(blocker_guid)
+					for blocker_id in block[1]:
+						blocker = self.creature_with_id(blocker_id)
 						damage_to_attacker += blocker.strength
 						if attacker_strength_to_apportion >= blocker.hit_points:
-							dead_creatures.append(blocker_guid)
+							dead_creatures.append(blocker_id)
 						attacker_strength_to_apportion -= blocker.hit_points
 
 					if damage_to_attacker >= attacker.hit_points:
-						dead_creatures.append(guid)
+						dead_creatures.append(id)
 					continue
 
 
@@ -367,16 +353,14 @@ class Game():
 
 		new_creatures = []		
 		for creature in self.creatures:
-			if creature.guid in dead_creatures:
-				if creature.guid in self.ready_creatures:
-					self.ready_creatures.remove(creature.guid)
-			else:
+			if creature.id not in dead_creatures:
 				new_creatures.append(creature)
 		self.creatures = new_creatures
 
-	def creature_with_guid(self, guid):
+	def creature_with_id(self, creature_id):
+		"""Return the creature in self.creatures with id equal to creature_id."""
 		for creature in self.creatures:
-			if creature.guid == guid:
+			if creature.id == creature_id:
 				return creature
 
 	def pass_the_turn(self, moving_player):
@@ -387,7 +371,6 @@ class Game():
 		self.played_land = False
 		self.player_with_priority = self.current_turn_player()
 
-		self.ready_creatures = [c.guid for c in self.creatures]
 		self.phase = "draw"
 
 		if self.print_moves:
@@ -403,8 +386,8 @@ class Game():
 		blockers = []
 		for c in self.creatures:
 			if c.owner == self.player_with_priority:
-				if c.guid not in self.blockers:
-					blockers.append(c.guid)
+				if c.id not in self.blockers:
+					blockers.append(c.id)
 		if len(blockers) == 0:
 			return possible_moves
 		
