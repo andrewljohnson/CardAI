@@ -68,6 +68,7 @@ class MonteCarloSearchTreeBot(Bot):
 		)
 
 		# Display the stats for each possible play.
+		'''
 		for x in sorted(
 			((100 * self.wins.get((player, S), 0) * 1.0 /
 				self.plays.get((player, S), 1),
@@ -77,7 +78,6 @@ class MonteCarloSearchTreeBot(Bot):
 			reverse=True
 		):
 			print "{3}: {0:.2f}% ({1} / {2})".format(*x)
-		'''
 		'''
 
 		return move

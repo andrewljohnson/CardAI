@@ -34,7 +34,7 @@ class AnyManaLand(Card):
 
 		player.hand.remove(self)
 
-    if game.print_moves:
+		if game.print_moves:
 			print "> {} {} played a TAPPED LAND!".format(player.__class__.__name__, game.players.index(player))
 
 
