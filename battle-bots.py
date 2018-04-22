@@ -41,18 +41,7 @@ def main():
 	game.add_player(eval("{}".format(bots_types[args.players[0]]))(starting_hit_points=args.starting_hit_points))
 	game.add_player(eval("{}".format(bots_types[args.players[1]]))(starting_hit_points=args.starting_hit_points))
 	game.print_moves = True
-
-	while not game.game_is_over():
-		player = game.players[game.player_with_priority]
-		player.play_move(game)
-
-	winner, winning_hp, losing_hp = game.winning_player()
-	if game.game_is_drawn():
-		print "Game Over - Draw"
-	else:
-		print "Game Over - {} {} wins! Final hit points are {} to {}.".format(winner.__class__.__name__, game.players.index(winner), winning_hp, losing_hp)
-
-
+	game.play_out()
 
 if __name__ == "__main__":
 	main()

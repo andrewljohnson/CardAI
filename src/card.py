@@ -93,7 +93,7 @@ class Bear(Card):
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Summon the bear for the player_with_priority."""
-		c = Creature(game.player_with_priority, strength=5, hit_points=1, creature_id=game.new_card_id)
+		c = Creature(game.player_with_priority, game.current_turn, strength=5, hit_points=1, creature_id=game.new_card_id)
 		summoner = game.players[game.player_with_priority]
 		summoner.hand.remove(self)
 		game.new_card_id += 1
@@ -107,7 +107,7 @@ class Bear(Card):
 class Creature():
 	"""A fantasy creature card instance."""
 
-	def __init__(self, owner, strength=0, hit_points=0, creature_id=None):
+	def __init__(self, owner, turn_played, strength=0, hit_points=0, creature_id=None):
 		
 		# an id that is unique among creatures in the game
 		self.id = creature_id
@@ -122,14 +122,15 @@ class Creature():
 		self.hit_points = hit_points
 
 		# the turn number this came into play
-		self.turn_played = None
+		self.turn_played = turn_played
 
 	def state_repr(self):
 		"""Return a hashable representation of the creature."""
 		return (self.id, 
 			 	self.owner, 
 			 	self.strength, 
-				self.hit_points
+				self.hit_points,
+				self.turn_played,
 		)
 
 	def can_attack(self, game):

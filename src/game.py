@@ -78,7 +78,7 @@ class Game():
 			clone_game.add_player(Bot(starting_hit_points=player_tuple[0], starting_mana=player_tuple[1], current_mana=player_tuple[2], hand=cards))
 
 		for creature_tuple in state[6]:
-			c = Creature(creature_tuple[1], strength=creature_tuple[2], hit_points=creature_tuple[3], creature_id=creature_tuple[0])
+			c = Creature(creature_tuple[1], creature_tuple[4], strength=creature_tuple[2], hit_points=creature_tuple[3], creature_id=creature_tuple[0])
 			clone_game.creatures.append(c)
 
 		clone_game.attackers = list(state[7])
@@ -400,3 +400,19 @@ class Game():
 			possible_moves.append(('assign_blockers', block, 0))
 
 		return possible_moves
+
+	def play_out(self):
+		"""Play out a game between two bots."""
+		while not self.game_is_over():
+			player = self.players[self.player_with_priority]
+			player.play_move(self)
+
+		winner, winning_hp, losing_hp = self.winning_player()
+		if self.print_moves:
+			if self.game_is_drawn():
+				print "Game Over - Draw"
+			else:
+				print "Game Over - {} {} wins! Final hit points are {} to {}.".format(winner.__class__.__name__, self.players.index(winner), winning_hp, losing_hp)
+
+		return winner
+

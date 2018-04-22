@@ -36,7 +36,7 @@ class MonteCarloBot(Bot):
 			current_player = clone_game.players[clone_game.player_with_priority]
 			move = clone_game.legal_plays([clone_game.state_repr()], current_player.current_mana)[move_index]
 			clone_game.do_move(move)
-			winner, _, _ = clone_game.play_out()
+			winner = clone_game.play_out()
 			if winner == current_player:
 				wins += 1
 			elif winner != None:
