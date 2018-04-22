@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=100, simulation_time=1, C=1.4, states=[]):
+	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=200, simulation_time=1, C=1.4, states=[]):
 		"""
 			Max moves is 20, because it was observed that this helps you find fast wins, and ignore unlikely hundred-term plans.
 			
@@ -95,9 +95,10 @@ class MonteCarloSearchTreeBot(Bot):
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
 			curr_play_num = state[2]
-			curr_player_mana = state[7][curr_play_num][2]
+			curr_player_mana = state[6][curr_play_num][2]
 
 			legal = self.board.legal_plays(states_copy, curr_player_mana)
+			# print "legal: {}".format(legal)
 			moves_states = [(p, self.board.next_state(state, p)) for p in legal]
 			if all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
