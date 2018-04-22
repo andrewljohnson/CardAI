@@ -18,7 +18,7 @@ def create_parser():
 		default=[2, 0],
 		nargs=2,
 		type=int,
-		help="a list of two player types - types are 0 for random, 1 for monte carlo, 2 for mcst, defaults to mcst vs. random"
+		help="a list of 3 player types - types are 0 for plays randomly, 1 for monte carlo, 2 for mcst, defaults to mcst vs. plays randomly"
 	)
 	parser.add_argument(
 		"--starting_hit_points",
@@ -48,12 +48,11 @@ def main():
 		player = game.players[game.player_with_priority]
 		player.play_move(game)
 
-	if game.game_is_over():
-		winner, winning_hp, losing_hp = game.winning_player()
-		if game.game_is_drawn():
-			print "Game Over - Draw"
-		else:
-			print "Game Over - {} {} wins! Final hit points are {} to {}.".format(winner.__class__.__name__, game.players.index(winner), winning_hp, losing_hp)
+	winner, winning_hp, losing_hp = game.winning_player()
+	if game.game_is_drawn():
+		print "Game Over - Draw"
+	else:
+		print "Game Over - {} {} wins! Final hit points are {} to {}.".format(winner.__class__.__name__, game.players.index(winner), winning_hp, losing_hp)
 
 
 
