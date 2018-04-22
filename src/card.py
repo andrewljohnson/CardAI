@@ -98,7 +98,7 @@ class Bear(Card):
 		return []
 
 	def play(self, game, mana_to_use, target_creature_id):
-		c = Creature(game.player_with_priority, strength=5, hit_points=2, guid=game.new_card_id)
+		c = Creature(game.player_with_priority, strength=2, hit_points=2, guid=game.new_card_id)
 		summoner = game.players[game.player_with_priority]
 		summoner.hand.remove(self)
 		game.new_card_id += 1
