@@ -42,7 +42,8 @@ class AnyManaLand(Card):
 		player = game.players[game.player_with_priority]
 		player.hand.remove(self)
 		if game.print_moves:
-			print "> {} {} played a LAND!".format(player.__class__.__name__, game.players.index(player))
+			print "> {} {} played a {}!" \
+				.format(player.__class__.__name__, game.players.index(player), self.__class__.__name__, self.id, )
 
 	def state_repr(self):
 		"""Return a hashable tuple representing the AnyManaLand."""
@@ -57,6 +58,23 @@ class AnyManaLand(Card):
 	def mana_provided(self):
 		"""The amount and kind of mana provided."""
 		return {'BUGRW': 1}
+
+
+class Forest(AnyManaLand):
+	"""A card that produces green mana."""
+
+	def mana_provided(self):
+		"""The amount and kind of mana provided."""
+		return {'G': 1}
+
+
+class Mountain(AnyManaLand):
+	"""A card that produces red mana."""
+
+	def mana_provided(self):
+		"""The amount and kind of mana provided."""
+		return {'R': 1}
+
 
 class Fireball(Card):
 	"""A card that deal X damage to anything."""
@@ -73,7 +91,7 @@ class Fireball(Card):
 			total_mana += count
 			if 'R' in color:
 				has_red = True
-		
+
 		if has_red and total_mana > 1:
 			for mana in range(2, total_mana+1):
 				possible_moves.append(('card-fireball', card_index, mana, None))

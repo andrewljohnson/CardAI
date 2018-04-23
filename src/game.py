@@ -3,7 +3,8 @@
 import collections
 import itertools
 from bot import Bot
-from card import AnyManaLand, Bear, Creature, Fireball
+from card import Bear, Creature, Fireball
+from card import Forest, Mountain
 from random import choice
 
 
@@ -355,7 +356,8 @@ class Game():
 	def available_cards(self, moving_player):
 		"""All possible cards in the game."""
 		return [
-			AnyManaLand(moving_player, card_id=self.new_card_id),
+			Forest(moving_player, card_id=self.new_card_id),
+			Mountain(moving_player, card_id=self.new_card_id),
 			Fireball(moving_player, card_id=self.new_card_id),
 			Bear(moving_player, card_id=self.new_card_id),
 		]
