@@ -12,14 +12,21 @@ class Game():
 	def __init__(self):
 		"""Set the list of players, and set the current_player to the first player."""
 
-		# a list of Bot subclass players
-		self.players = []
-
-		# whether to print each move, typically False during simulation, but true for a real game
-		self.print_moves = False 
-
 		# the current turn, switches after each player takes their full turn
 		self.current_turn = 0
+
+		# the index of the player in self.players who currently has priority
+		self.player_with_priority = 0
+
+		# gets incremented everytime a card is played, used as the id for each new card
+		self.new_card_id = 0
+
+		# can be setup, draw, precombat, declare_attackers, declare_blockers, 
+		# combat_resolution, or postcombat
+		self.phase = "setup"
+
+		# a list of Bot subclass players
+		self.players = []
 
 		# a list of Creature objects in play
 		self.creatures = []
@@ -36,18 +43,11 @@ class Game():
 		# a list of dicts keying a single attacking creature id to a list of blocking creature ids
 		self.blocks = []
 
-		# the index of the player in self.players who currently has priority
-		self.player_with_priority = 0
-
-		# gets incremented everytime a card is played, used as the id for each new card
-		self.new_card_id = 0
-
-		# can be setup, draw, precombat, declare_attackers, declare_blockers, 
-		# combat_resolution, or postcombat
-		self.phase = "setup"
-
 		# a list of previous states the game has been in
 		self.states = [self.state_repr()]
+
+		# whether to print each move, typically False during simulation, but true for a real game
+		self.print_moves = False 
 
 	def state_repr(self):
 		"""A hashable representation of the game state."""
@@ -75,25 +75,31 @@ class Game():
 			cards = []
 			for card_tuple in player_tuple[1]:
 				cards.append(eval("{}".format(card_tuple[0]))(card_tuple[2], card_id=card_tuple[1]))
-			clone_game.add_player(Bot(
-										starting_hit_points=player_tuple[0], 
-									 	hand=cards))
+			clone_game.add_player(
+				Bot(
+					hit_points=player_tuple[0], 
+					hand=cards
+				)
+			)
 
 		for creature_tuple in state[5]:
 			c = Creature(
-							creature_tuple[1], 
-							creature_tuple[4], 
-							strength=creature_tuple[2], 
-							hit_points=creature_tuple[3], 
-							creature_id=creature_tuple[0])
+				creature_tuple[1], 
+				creature_tuple[4], 
+				strength=creature_tuple[2], 
+				hit_points=creature_tuple[3], 
+				creature_id=creature_tuple[0]
+			)
 			clone_game.creatures.append(c)
 
 		for land_tuple in state[6]:
 			classname = land_tuple[0]
-			land = eval("{}".format(classname))(land_tuple[2], 
-												card_id=land_tuple[1],
-												turn_played=land_tuple[3],
-												is_tapped=land_tuple[4],)
+			land = eval("{}".format(classname))(
+				land_tuple[2], 
+				card_id=land_tuple[1],
+				turn_played=land_tuple[3],
+				is_tapped=land_tuple[4],
+			)
 			clone_game.lands.append(land)
 
 		clone_game.attackers = list(state[7])
@@ -196,19 +202,29 @@ class Game():
 	def next_state(self, state, move):
 		"""Return a new state after applying the move to state."""
 		clone_game = self.game_for_state(state)
+		return clone_game.do_move(move)
+
+	def do_move(self, move):
+		"""Do the move and increment the turn."""
+		player = self.players[self.player_with_priority]
+		mana_to_use = move[2]
 		if move[0].startswith('card'):
-			player_number = clone_game.player_with_priority
-			target_creature = move[3]
-			mana_to_use = move[2]
-			card_index = move[1]
-			method_name = move[0]
-			card = clone_game.players[player_number].hand[card_index]
-			card.play(clone_game, mana_to_use, target_creature)
+			self.play_card_move(move)
 		else:
-			player = clone_game.players[clone_game.player_with_priority]
-			eval("clone_game.{}".format(move[0]))(move[1])
-		clone_game.tap_lands_for_mana(move[2])
-		return clone_game.state_repr()
+			eval("self.{}".format(move[0]))(move[1])
+		self.tap_lands_for_mana(mana_to_use)
+		state_rep = self.state_repr()
+		self.states.append(state_rep)
+		return state_rep
+
+	def play_card_move(self, move):
+		player_number = self.player_with_priority
+		target_creature = move[3]
+		mana_to_use = move[2]
+		card_index = move[1]
+		method_name = move[0]
+		card = self.players[player_number].hand[card_index]
+		card.play(self, mana_to_use, target_creature)
 
 	def tap_lands_for_mana(self, lands_to_tap):
 		"""Tap land_to_tap lands to pay for a spell or effect."""
@@ -218,23 +234,6 @@ class Game():
 			if land.owner == self.player_with_priority and not land.is_tapped:
 				land.is_tapped = True
 				lands_to_tap -= 1
-
-	def do_move(self, move):
-		"""Do the move and increment the turn."""
-		player = self.players[self.player_with_priority]
-		if move[0].startswith('card'):
-			player_number = self.player_with_priority
-			target_creature = move[3]
-			mana_to_use = move[2]
-			card_index = move[1]
-			method_name = move[0]
-			card = self.players[player_number].hand[card_index]
-			card.play(self, mana_to_use, target_creature)
-		else:
-			eval("self.{}".format(move[0]))(move[1])
-		self.tap_lands_for_mana(move[2])
-		state_rep = self.state_repr()
-		self.states.append(state_rep)
 
 	def opponent(self, player):
 		"""Return the player that isn't the given player."""

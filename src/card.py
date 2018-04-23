@@ -12,9 +12,10 @@ class Card(object):
 
 	def state_repr(self):
 		"""Return a hashable tuple representing the Card."""
-		return (self.__class__.__name__,
-				self.id, 
-			 	self.owner, 
+		return (
+			self.__class__.__name__,
+			self.id, 
+			self.owner, 
 		)
 
 
@@ -35,10 +36,9 @@ class AnyManaLand(Card):
 		return [('card-land', card_index, 0, None)]
 
 	def play(self, game, mana_to_use, target_creature_id):
-		"""Increment mana for the player with priority."""
+		"""Remove this from the player's hand and add it to game.lands."""
 		self.turn_played = game.current_turn
 		game.lands.append(self)
-		game.played_land = True
 		player = game.players[game.player_with_priority]
 		player.hand.remove(self)
 		if game.print_moves:
@@ -46,11 +46,12 @@ class AnyManaLand(Card):
 
 	def state_repr(self):
 		"""Return a hashable tuple representing the AnyManaLand."""
-		return (self.__class__.__name__,
-				self.id, 
-			 	self.owner, 
-			 	self.turn_played, 
-			 	self.is_tapped, 
+		return (
+			self.__class__.__name__,
+			self.id, 
+			self.owner, 
+			self.turn_played, 
+			self.is_tapped, 
 		)
 
 class Fireball(Card):
