@@ -21,29 +21,44 @@ class Card(object):
 class AnyManaLand(Card):
 	"""A card that produces any color mana."""
 
+	def __init__(self, owner, card_id=None, turn_played=None, is_tapped=False):
+		super(AnyManaLand, self) \
+			.__init__(owner, card_id=card_id)
+		self.turn_played = turn_played
+		self.is_tapped = is_tapped
+
 	def possible_moves(self, game):
 		"""Returns [] if the player already played a land, other returns the action to play tapped."""
-		if game.played_land:
+		if game.played_land():
 			return []
 		card_index = game.players[game.player_with_priority].hand.index(self)
 		return [('card-land', card_index, 0, None)]
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Increment mana for the player with priority."""
-		player = game.players[game.player_with_priority]
-		player.mana += 1
+		self.turn_played = game.current_turn
+		game.lands.append(self)
 		game.played_land = True
+		player = game.players[game.player_with_priority]
 		player.hand.remove(self)
 		if game.print_moves:
-			print "> {} {} played a TAPPED LAND!".format(player.__class__.__name__, game.players.index(player))
+			print "> {} {} played a LAND!".format(player.__class__.__name__, game.players.index(player))
 
+	def state_repr(self):
+		"""Return a hashable tuple representing the AnyManaLand."""
+		return (self.__class__.__name__,
+				self.id, 
+			 	self.owner, 
+			 	self.turn_played, 
+			 	self.is_tapped, 
+		)
 
 class Fireball(Card):
 	"""A card that deal X damage to anything."""
 
 	def possible_moves(self, game):
 		"""Returns possible fireballs targets and amounts."""
-		available_mana = game.players[game.player_with_priority].current_mana
+		available_mana = game.available_mana()
 		possible_moves = []
 		card_index = game.players[game.player_with_priority].hand.index(self)
 		
@@ -85,7 +100,7 @@ class Bear(Card):
 
 	def possible_moves(self, game):
 		"""Returns [] if the player has less than 2 man, other returns the action to play the bear."""
-		available_mana = game.players[game.player_with_priority].current_mana
+		available_mana = game.available_mana()
 		if available_mana > 1:
 			card_index = game.players[game.player_with_priority].hand.index(self)
 			return [('card-bear', card_index, 2, None)]

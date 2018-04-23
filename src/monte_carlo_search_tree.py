@@ -7,8 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, starting_hit_points=0, current_mana=0, starting_mana=0, max_moves=120, 
-		simulation_time=5, C=1.4):
+	def __init__(self, starting_hit_points=0, max_moves=120, simulation_time=5, C=1.4):
 		"""
 			Adjust simulation_time and max_moves to taste.
 
@@ -19,8 +18,6 @@ class MonteCarloSearchTreeBot(Bot):
 		super(MonteCarloSearchTreeBot, self) \
 			.__init__(
 						starting_hit_points=starting_hit_points, 
-						current_mana=current_mana, 
-						starting_mana=starting_mana, 
 						hand=[])
 
 		# the amount of time to call run_simulation as much as possible 		
@@ -37,6 +34,9 @@ class MonteCarloSearchTreeBot(Bot):
 		self.wins = {}
 		self.plays = {}
 
+		# enable to log simulation results
+		self.show_simulation_results = True
+
 	def play_move(self, game):
 		"""Play a move in game."""
 		move = self.get_play()
@@ -49,7 +49,7 @@ class MonteCarloSearchTreeBot(Bot):
 			after simulating possible plays and updating plays and wins stats.
 		"""
 		state = self.game.states[-1]
-		legal = self.game.legal_plays(self.game.states[:], self.current_mana)
+		legal = self.game.legal_plays(self.game.states[:])
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
@@ -75,18 +75,17 @@ class MonteCarloSearchTreeBot(Bot):
 			for p, S in moves_states
 		)
 
-		'''
-		# Display the stats for each possible play.
-		for x in sorted(
-			((100 * self.wins.get((player, S), 0) * 1.0 /
-				self.plays.get((player, S), 1),
-				self.wins.get((player, S), 0),
-				self.plays.get((player, S), 0), p)
-			 for p, S in moves_states),
-			reverse=True
-		):
-			print "{3}: {0:.2f}% ({1} / {2})".format(*x)
-		'''
+		if self.show_simulation_results:
+			# Display the stats for each possible play.
+			for x in sorted(
+				((100 * self.wins.get((player, S), 0) * 1.0 /
+					self.plays.get((player, S), 1),
+					self.wins.get((player, S), 0),
+					self.plays.get((player, S), 0), p)
+				 for p, S in moves_states),
+				reverse=True
+			):
+				print "{3}: {0:.2f}% ({1} / {2})".format(*x)
 
 		return move
 
@@ -102,11 +101,9 @@ class MonteCarloSearchTreeBot(Bot):
 
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
-			curr_play_num = state[2]
-			curr_player_mana = state[5][curr_play_num][2]
+			curr_play_num = state[1]
 
-			legal = self.game.legal_plays(states_copy, curr_player_mana)
-			# print "legal: {}".format(legal)
+			legal = self.game.legal_plays(states_copy)
 			moves_states = [(p, self.game.next_state(state, p)) for p in legal]
 			if all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
@@ -121,7 +118,6 @@ class MonteCarloSearchTreeBot(Bot):
 				# Otherwise, just make an arbitrary decision.
 				move, state = choice(moves_states)
 
-			# print "moved {} to sim state {}".format(move, state)
 			states_copy.append(state)
 
 			# `player` here and below refers to the player
@@ -136,8 +132,6 @@ class MonteCarloSearchTreeBot(Bot):
 			winner = self.game.winner(states_copy)
 			if winner >= 0:
 				break
-
-		# print "{} moves, {} winner, STATE AFTER SIM {}".format(t, winner, state)
 
 		for player, state in visited_states:
 			if (player, state) not in plays:
