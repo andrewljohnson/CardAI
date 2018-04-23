@@ -1,5 +1,6 @@
 """Game encapsulates the rules and state of a fantasy card game, and interface with bots."""
 
+import collections
 import itertools
 from bot import Bot
 from card import AnyManaLand, Bear, Creature, Fireball
@@ -217,7 +218,26 @@ class Game():
 		self.states.append(state_rep)
 		return state_rep
 
+	def tap_lands_for_mana(self, lands_to_tap):
+		"""Tap land_to_tap lands to pay for a spell or effect."""
+		tapped = lands_to_tap
+		for land in self.lands:
+			if tapped == 0:
+				break
+			if land.owner == self.player_with_priority and not land.is_tapped:
+				land.is_tapped = True
+				tapped -= 1
+
+	def available_mana(self):
+		"""Returns a map of color to amount of mana from player_with_priority's untapped lands."""
+		mana = collections.Counter()
+		for land in self.lands:
+			if land.owner == self.player_with_priority and not land.is_tapped:
+				mana.update(land.mana_provided())
+		return dict(mana)
+
 	def play_card_move(self, move):
+		"""Play a card baed on the move tuple."""
 		player_number = self.player_with_priority
 		target_creature = move[3]
 		mana_to_use = move[2]
@@ -225,15 +245,6 @@ class Game():
 		method_name = move[0]
 		card = self.players[player_number].hand[card_index]
 		card.play(self, mana_to_use, target_creature)
-
-	def tap_lands_for_mana(self, lands_to_tap):
-		"""Tap land_to_tap lands to pay for a spell or effect."""
-		for land in self.lands:
-			if lands_to_tap == 0:
-				break
-			if land.owner == self.player_with_priority and not land.is_tapped:
-				land.is_tapped = True
-				lands_to_tap -= 1
 
 	def opponent(self, player):
 		"""Return the player that isn't the given player."""
@@ -250,7 +261,6 @@ class Game():
 		
 		game_state = state_history[-1]
 		game = self.game_for_state(game_state)
-		available_mana = game.available_mana()
 
 		if game.phase == "setup":
 			return [('initial_draw', game.player_with_priority, 0),]			
@@ -267,17 +277,8 @@ class Game():
 			possible_moves = game.add_attack_actions(game, possible_moves)
 		return possible_moves
 
-	def available_mana(self):
-		"""The total number of mana from untapped lands the player_with_priority can muster. """
-		mana = 0
-		for land in self.lands:
-			if land.owner == self.player_with_priority and land.is_tapped == False:
-				mana += 1
-		return mana
-
 	def played_land(self):
 		"""Returns True if the player_with_priority has played a land this turn."""
-		played_land_this_turn = False
 		for land in self.lands:
 			if land.owner == self.player_with_priority and land.turn_played == self.current_turn:
 				return True

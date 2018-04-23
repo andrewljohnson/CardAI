@@ -11,7 +11,7 @@ class Bot(object):
 
 	def play_move(self, game):
 		"""Play a random move in game."""
-		move = choice(game.legal_plays([game.state_repr()]))
+		move = choice(game.legal_plays(game.states))
 		game.do_move(move)
 
 	def state_repr(self):

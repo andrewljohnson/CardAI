@@ -54,6 +54,10 @@ class AnyManaLand(Card):
 			self.is_tapped, 
 		)
 
+	def mana_provided(self):
+		"""The amount and kind of mana provided."""
+		return {'BUGRW': 1}
+
 class Fireball(Card):
 	"""A card that deal X damage to anything."""
 
@@ -63,11 +67,18 @@ class Fireball(Card):
 		possible_moves = []
 		card_index = game.players[game.player_with_priority].hand.index(self)
 		
-		if available_mana > 1:
-			for mana in range(2, available_mana+1):
+		has_red = False
+		total_mana = 0
+		for color, count in available_mana.iteritems():
+			total_mana += count
+			if 'R' in color:
+				has_red = True
+		
+		if has_red and total_mana > 1:
+			for mana in range(2, total_mana+1):
 				possible_moves.append(('card-fireball', card_index, mana, None))
 			for c in game.creatures:
-				for mana in range(2, available_mana+1):
+				for mana in range(2, total_mana+1):
 					possible_moves.append(('card-fireball-creature', card_index, mana, c.id))
 		return possible_moves
 
@@ -102,7 +113,13 @@ class Bear(Card):
 	def possible_moves(self, game):
 		"""Returns [] if the player has less than 2 man, other returns the action to play the bear."""
 		available_mana = game.available_mana()
-		if available_mana > 1:
+		has_green = False
+		total_mana = 0
+		for color, count in available_mana.iteritems():
+			total_mana += count
+			if 'G' in color:
+				has_green = True
+		if has_green and total_mana > 1:
 			card_index = game.players[game.player_with_priority].hand.index(self)
 			return [('card-bear', card_index, 2, None)]
 		return []

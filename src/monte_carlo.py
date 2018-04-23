@@ -12,7 +12,7 @@ class MonteCarloBot(Bot):
 		move_index = 0
 		top_score_index = 0
 		top_score = 0
-		legal_plays = game.legal_plays([game.state_repr()])
+		legal_plays = game.legal_plays(game.states)
 
 		if len(legal_plays) != 1:
 			for move in legal_plays:
@@ -34,7 +34,7 @@ class MonteCarloBot(Bot):
 		for x in range(0, iterations):
 			clone_game = game.game_for_state(game.state_repr())
 			current_player = clone_game.players[clone_game.player_with_priority]
-			move = clone_game.legal_plays([clone_game.state_repr()])[move_index]
+			move = clone_game.legal_plays(clone_game.states)[move_index]
 			clone_game.do_move(move)
 			winner = clone_game.play_out()
 			if winner == current_player:
