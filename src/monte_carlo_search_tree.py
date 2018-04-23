@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, hit_points=0, max_moves=120, simulation_time=5, C=1.4):
+	def __init__(self, hit_points=0, max_moves=30, simulation_time=5, C=1.4):
 		"""
 			Adjust simulation_time and max_moves to taste.
 
@@ -15,10 +15,7 @@ class MonteCarloSearchTreeBot(Bot):
 
 			but higher if we want more exploration and less focus on good moves.
 		"""
-		super(MonteCarloSearchTreeBot, self) \
-			.__init__(
-						hit_points=hit_points, 
-						hand=[])
+		super(MonteCarloSearchTreeBot, self).__init__(hit_points=hit_points)
 
 		# the amount of time to call run_simulation as much as possible 		
 		self.calculation_time = datetime.timedelta(seconds=simulation_time)
@@ -35,7 +32,7 @@ class MonteCarloSearchTreeBot(Bot):
 		self.plays = {}
 
 		# enable to log simulation results
-		self.show_simulation_results = False
+		self.show_simulation_results = True
 
 	def play_move(self, game):
 		"""Play a move in game."""

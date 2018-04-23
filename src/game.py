@@ -3,8 +3,7 @@
 import collections
 import itertools
 from bot import Bot
-from card import Fireball, NettleSentinel
-from card import Forest, Mountain
+from card import Card, Creature, Land
 from random import choice
 
 
@@ -74,35 +73,16 @@ class Game():
 		clone_game.phase = state[3]
 
 		for player_tuple in state[4]:
-			cards = []
+			player = Bot(hit_points=player_tuple[0])
 			for card_tuple in player_tuple[1]:
-				cards.append(eval("{}" \
-					.format(card_tuple[0]))(card_tuple[2], card_tuple[1], card_tuple[3],))
-			clone_game.add_player(
-				Bot(
-					hit_points=player_tuple[0], 
-					hand=cards
-				)
-			)
+				player.hand.append(Card.card_for_state(card_tuple))
+			clone_game.add_player(player)
 
 		for creature_tuple in state[5]:
-			classname = creature_tuple[0]
-			c = eval("{}".format(classname))(
-				creature_tuple[1], 
-				creature_tuple[2], 
-				creature_tuple[3]
-			)
-			clone_game.creatures.append(c)
+			clone_game.creatures.append(Creature.creature_for_state(creature_tuple))
 
 		for land_tuple in state[6]:
-			classname = land_tuple[0]
-			land = eval("{}".format(classname))(
-				land_tuple[2], 
-				land_tuple[1],
-				turn_played=land_tuple[3],
-				tapped=land_tuple[4],
-			)
-			clone_game.lands.append(land)
+			clone_game.lands.append(Land.land_for_state(land_tuple))
 
 		clone_game.attackers = list(state[7])
 		clone_game.blockers = list(state[8])
@@ -212,22 +192,39 @@ class Game():
 		mana_to_use = move[2]
 		if move[0].startswith('card'):
 			self.play_card_move(move)
+			self.tap_lands_for_mana(mana_to_use)
 		else:
 			eval("self.{}".format(move[0]))(move[1])
-		self.tap_lands_for_mana(mana_to_use)
 		state_rep = self.state_repr()
 		self.states.append(state_rep)
 		return state_rep
 
-	def tap_lands_for_mana(self, lands_to_tap):
+	def tap_lands_for_mana(self, mana_to_tap):
 		"""Tap land_to_tap lands to pay for a spell or effect."""
-		tapped = lands_to_tap
-		for land in self.lands:
-			if tapped == 0:
-				break
-			if land.owner == self.player_with_priority and not land.tapped:
-				land.tapped = True
-				tapped -= 1
+
+		colored = []
+		colorless = 0
+
+		for mana in mana_to_tap:
+			if isinstance(mana, int):
+				colorless = mana
+			else:
+				colored.append(mana)
+
+		while len(colored) > 0:
+			mana = colored[0]
+			for l in self.lands:
+				if l.owner == self.player_with_priority and not l.tapped:
+					if mana in l.mana_provided():
+						l.tapped = True
+						colored.pop(0)
+						break
+
+		while colorless > 0:
+			for l in self.lands:
+				if l.owner == self.player_with_priority and not l.tapped:
+					l.tapped = True
+					colorless -= 1
 
 	def available_mana(self):
 		"""Returns a map of color to amount of mana from player_with_priority's untapped lands."""
@@ -274,7 +271,9 @@ class Game():
 		elif game.phase == "declare_blockers":
 			return game.all_legal_blocks()
 		elif game.phase == "combat_resolution":
-			return [('resolve_combat', game.player_with_priority, 0),]
+			possible_moves = game.add_card_actions(game, [])
+			possible_moves.append(('resolve_combat', game.player_with_priority, 0),)
+			return possible_moves
 
 		possible_moves = [('pass_the_turn', game.player_with_priority, 0)]
 		possible_moves = game.add_card_actions(game, possible_moves)
@@ -294,6 +293,9 @@ class Game():
 		card_types_added = []
 		for card in game.players[game.player_with_priority].hand:
 			if card.__class__ not in card_types_added:
+				if game.phase == 'combat_resolution':
+					if card.card_type != 'instant':
+						continue
 				possible_moves += card.possible_moves(game)
 				card_types_added.append(card.__class__)
 		return possible_moves
@@ -315,12 +317,13 @@ class Game():
 
 	def initial_draw(self, moving_player):
 		"""Add some cards to each player's hand."""
-	 	for i in range(0,7):
-	 		self.draw_card(moving_player);
+	 	if moving_player == 0:
+		 	for i in range(0,7):
+		 		self.draw_card(moving_player);
 		if self.print_moves:
 			current_player = self.players[moving_player]
 			hand_strings = [type(c).__name__ for c in current_player.hand]
-			print "> {} {} DREW HER HAND: {} ({} cards)." \
+			print "> {} {} drew her hand: {} ({} cards)." \
 				.format(current_player.__class__.__name__, 
 						self.players.index(current_player), 
 						hand_strings, 
@@ -343,28 +346,24 @@ class Game():
 
 	def draw_card(self, moving_player):
 		"""Add a card to moving_player's hand."""
-		new_card = choice(self.available_cards(moving_player))
+		new_card_class = choice(Card.available_cards())
+		new_card = new_card_class(
+			moving_player, 
+			self.new_card_id
+		)
+
 		current_player = self.players[moving_player]
 		current_player.hand.append(new_card)
 		self.new_card_id += 1
 
 		if self.phase == "draw":
 			self.phase = "precombat"
-
+		
 		if self.print_moves and self.phase != 'setup':
-			print "> {} {} DREW {}." \
+			print "> {} {} drew {} {}." \
 				.format(current_player.__class__.__name__, 
 						self.players.index(current_player), 
-						type(new_card).__name__)	 		
-
-	def available_cards(self, moving_player):
-		"""All possible cards in the game."""
-		return [
-			Forest(moving_player, self.new_card_id),
-			Mountain(moving_player, self.new_card_id),
-			Fireball(moving_player, self.new_card_id),
-			NettleSentinel(moving_player, self.current_turn, self.new_card_id),
-		]
+						type(new_card).__name__, new_card.id)	 		
 
 	def announce_attackers(self, attackers):
 		"""Set attackers, shift priority to the defending player, and update the phase."""
@@ -374,7 +373,7 @@ class Game():
 			attacker.tapped = True
 		if self.print_moves:
 			current_player = self.players[self.player_with_priority]
-			print "> {} {} ANNOUNCED ATTACK." \
+			print "> {} {} announced attack." \
 				.format(current_player.__class__.__name__, 
 						self.players.index(current_player))
 		self.player_with_priority = self.not_current_turn_player()
@@ -388,7 +387,7 @@ class Game():
 
 		if self.print_moves:
 			current_player = self.players[self.player_with_priority]
-			print "> {} {} BLOCKED {} with {}." \
+			print "> {} {} blocked {} with {}." \
 				.format(current_player.__class__.__name__, 
 					self.players.index(current_player), 
 					block_tuple[0], 
@@ -398,7 +397,7 @@ class Game():
 		"""Shift priority to the defending player and update the phase."""
 		if self.print_moves:
 			current_player = self.players[self.player_with_priority]
-			print "> {} {} FINISHED BLOCKING." \
+			print "> {} {} finished blocking." \
 				.format(current_player.__class__.__name__, 
 						self.players.index(current_player))
 
@@ -417,7 +416,7 @@ class Game():
 			attacker = None
 			is_blocked = False 
 			attacker = self.creature_with_id(creature_id)
-			attacker_strength_to_apportion = attacker.strength
+			attacker_strength_to_apportion = attacker.total_damage()
 
 			for block in self.blocks:
 				if block[0] == creature_id:
@@ -427,29 +426,29 @@ class Game():
 					is_blocked = True
 					for blocker_id in block[1]:
 						blocker = self.creature_with_id(blocker_id)
-						damage_to_attacker += blocker.strength
-						if attacker_strength_to_apportion >= blocker.hit_points:
+						damage_to_attacker += blocker.total_damage()
+						if attacker_strength_to_apportion >= blocker.total_hit_points():
 							dead_creatures.append(blocker_id)
-						attacker_strength_to_apportion -= blocker.hit_points
+						attacker_strength_to_apportion -= blocker.total_hit_points()
 
-					if damage_to_attacker >= attacker.hit_points:
-						dead_creatures.append(id)
+					if damage_to_attacker >= attacker.total_hit_points():
+						dead_creatures.append(attacker.id)
 					continue
 
 
 			if not is_blocked:
-				opponent.hit_points -= attacker.strength
-				total_attack += attacker.strength
+				opponent.hit_points -= attacker.total_damage()
+				total_attack += attacker.total_damage()
 
 		if self.print_moves:
 			if total_attack > 0:
-				print "> {} {} ATTACKED for {}, {} killed." \
+				print "> {} {} attacked for {}, {} killed." \
 					.format(current_player.__class__.__name__,
 							self.players.index(current_player),
 							total_attack,
 							[d.__class__.__name__ for d in dead_creatures])
 			else:
-				print "> {} {} ATTACKED, {} killed." \
+				print "> {} {} attacked, {} killed." \
 					.format(current_player.__class__.__name__, 
 							self.players.index(current_player), 
 							dead_creatures)
@@ -476,6 +475,10 @@ class Game():
 		player = self.players[self.current_turn_player()]
 
 		self.player_with_priority = self.current_turn_player()
+
+		for card_list in [self.creatures, self.lands]:
+			for card in card_list:
+				card.adjust_for_end_turn()
 
 		for card_list in [self.creatures, self.lands]:
 			for card in card_list:
