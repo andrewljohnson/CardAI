@@ -193,6 +193,9 @@ class Game():
 		if move[0].startswith('card'):
 			self.play_card_move(move)
 			self.tap_lands_for_mana(mana_to_use)
+		elif move[0].startswith('ability'):
+			self.play_ability_move(move)
+			self.tap_lands_for_mana(mana_to_use)
 		else:
 			eval("self.{}".format(move[0]))(move[1])
 		state_rep = self.state_repr()
@@ -213,6 +216,18 @@ class Game():
 
 		while len(colored) > 0:
 			mana = colored[0]
+			temp_index_to_remove = 0
+			found_temp = False
+			for temp_mana in self.players[self.player_with_priority].temp_mana:
+				if temp_mana in mana:
+					colored.pop(0)
+					found_temp = True
+					break
+				temp_index_to_remove += 1
+			if found_temp:
+				del self.players[self.player_with_priority].temp_mana[temp_index_to_remove]
+				continue
+
 			for l in self.lands:
 				if l.owner == self.player_with_priority and not l.tapped:
 					if mana in l.mana_provided():
@@ -232,17 +247,39 @@ class Game():
 		for land in self.lands:
 			if land.owner == self.player_with_priority and not land.tapped:
 				mana.update(land.mana_provided())
-		return dict(mana)
+
+		mana_dict = dict(mana)
+
+		for land in self.players[self.player_with_priority].temp_mana:
+			if mana_symbol in mana:
+				mana_dict[mana_symbol] += 1
+			else:
+				mana_dict[mana_symbol] = 1				
+
+		return mana_dict
 
 	def play_card_move(self, move):
-		"""Play a card baed on the move tuple."""
+		"""Play a card based on the move tuple."""
 		player_number = self.player_with_priority
 		target_creature = move[3]
 		mana_to_use = move[2]
 		card_index = move[1]
-		method_name = move[0]
 		card = self.players[player_number].hand[card_index]
 		card.play(self, mana_to_use, target_creature)
+		for creature in self.creatures:
+			creature.react_to_spell(card)
+		for land in self.lands:
+			land.react_to_spell(card)
+
+	def play_ability_move(self, move):
+		"""Play an activated based on the move tuple."""
+		player_number = self.player_with_priority
+		target_creature_id = move[3]
+		target_land_id = move[4]
+		mana_to_use = move[2]
+		card_index = move[1]
+		card = self.creatures[card_index]
+		card.activate_ability(self, mana_to_use, target_creature_id, target_land_id)
 		for creature in self.creatures:
 			creature.react_to_spell(card)
 		for land in self.lands:
@@ -270,15 +307,16 @@ class Game():
 			return [('draw_card', game.player_with_priority, 0),]			
 		elif game.phase == "declare_blockers":
 			return game.all_legal_blocks()
+		
+		possible_moves = game.add_card_actions(game, [])
+		possible_moves = game.add_instant_creature_abilities(game, possible_moves)
+		if game.phase == "precombat":
+			possible_moves = game.add_attack_actions(game, possible_moves)
 		elif game.phase == "combat_resolution":
-			possible_moves = game.add_card_actions(game, [])
 			possible_moves.append(('resolve_combat', game.player_with_priority, 0),)
 			return possible_moves
 
-		possible_moves = [('pass_the_turn', game.player_with_priority, 0)]
-		possible_moves = game.add_card_actions(game, possible_moves)
-		if game.phase == "precombat":
-			possible_moves = game.add_attack_actions(game, possible_moves)
+		possible_moves.append(('pass_the_turn', game.player_with_priority, 0))
 		return possible_moves
 
 	def played_land(self):
@@ -300,6 +338,16 @@ class Game():
 				card_types_added.append(card.__class__)
 		return possible_moves
 
+	def add_instant_creature_abilities(self, game, possible_moves):
+		"""Return a list of possible actions based on the player_with_priority's hand."""
+		for creature in game.creatures:
+			if creature.owner == game.player_with_priority:
+				if game.phase == 'combat_resolution':
+					if creature.activated_ability_type != 'instant':
+						continue
+				possible_moves += creature.possible_ability_moves(game)
+		return possible_moves
+
 	def add_attack_actions(self, game, possible_moves):
 		"""Return a list of possible actions based on the player_with_priority's creatures."""
 		available_attackers = []
@@ -317,9 +365,8 @@ class Game():
 
 	def initial_draw(self, moving_player):
 		"""Add some cards to each player's hand."""
-	 	if moving_player == 0:
-		 	for i in range(0,7):
-		 		self.draw_card(moving_player);
+	 	for i in range(0,7):
+	 		self.draw_card(moving_player);
 		if self.print_moves:
 			current_player = self.players[moving_player]
 			hand_strings = [type(c).__name__ for c in current_player.hand]
@@ -475,6 +522,9 @@ class Game():
 		player = self.players[self.current_turn_player()]
 
 		self.player_with_priority = self.current_turn_player()
+
+		for player in self.players:
+			player.adjust_for_end_turn()
 
 		for card_list in [self.creatures, self.lands]:
 			for card in card_list:

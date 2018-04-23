@@ -27,8 +27,10 @@ class Card(object):
 			#VinesOfVastwood(moving_player, current_turn),
 			#Mountain,
 			#Fireball,
+			BurningTreeEmissary,
 			Forest,
-			NettleSentinel,
+			#NettleSentinel,
+			#QuirionRanger,
 			VinesOfVastwood,
 		]
 
@@ -58,7 +60,6 @@ class Card(object):
 
 	def total_mana_cost(self):
 		return []
-
 
 class Land(Card):
 	"""A card that produces any color mana."""
@@ -107,6 +108,10 @@ class Land(Card):
 	def mana_provided(self):
 		"""The amount and kind of mana provided."""
 		return {'BUGRW': 1}
+
+	def return_to_hand(self, game):
+		game.players[self.owner].hand.append(self)
+		game.lands.remove(self)
 
 
 class Forest(Land):
@@ -244,6 +249,8 @@ class Creature(Card):
 		self.temp_strength = 0
 		self.temp_hit_points = 0
 		self.temp_targettable = True
+		self.activated_ability = False
+		self.activated_ability_type = 'instant'
 
 	@staticmethod
 	def creature_for_state(state):
@@ -258,6 +265,8 @@ class Creature(Card):
 		c.temp_strength = state[6]
 		c.temp_hit_points = state[7]
 		c.temp_targettable =state[8]
+		c.activated_ability = state[9]
+		c.activated_ability_type = state[10]
 
 		return c
 
@@ -272,6 +281,8 @@ class Creature(Card):
 				self.temp_strength, 
 				self.temp_hit_points,
 				self.temp_targettable,
+				self.activated_ability,
+				self.activated_ability_type,
 		)
 
 	def initial_strength():
@@ -315,7 +326,7 @@ class Creature(Card):
 			print "> {} {} summoned a {}/{} {}.".format(player.__class__.__name__, game.players.index(player), self.strength, self.hit_points, self.__class__.__name__)
 
 	def possible_moves(self, game):
-		"""Returns [] if the player has less than 2 man, other returns the action to play the bear."""
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
 		available_mana = game.available_mana()
 		has_green = False
 		total_mana = 0
@@ -326,6 +337,9 @@ class Creature(Card):
 		if has_green and total_mana >= self.mana_cost():
 			card_index = game.players[game.player_with_priority].hand.index(self)
 			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
+		return []
+
+	def possible_ability_moves(self, game):
 		return []
 
 
@@ -364,4 +378,108 @@ class NettleSentinel(Creature):
 	def react_to_spell(self, card):
 		if 'G' in card.total_mana_cost():
 			self.tapped = False
+
+
+class QuirionRanger(Creature):
+	"""
+		Nettle Sentinel doesn't untap during your untap step.
+		
+		Whenever you cast a green spell, you may untap Nettle Sentinel.
+	"""
+
+	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
+		super(QuirionRanger, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
+		self.activated = False
+
+	def total_mana_cost(self):
+		return ['G']
+
+	def initial_strength(self):
+		return 1
+
+	def initial_hit_points(self):
+		return 1
+
+	def possible_ability_moves(self, game):
+		possible_moves = []
+		if not self.activated_ability and self.turn_played != game.current_turn:
+			for land in game.lands:
+				if land.owner == self.owner and land.__class__.__name__ == "Forest":
+					for creature in game.creatures:
+						if creature.owner == self.owner:
+							possible_moves.append(
+								(
+									'ability-{}'.format(self.__class__.__name__), 
+									game.creatures.index(self), 
+									[], 
+									creature.id, 
+									land.id
+								)
+							)
+		return possible_moves
+
+	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
+		"""Return a forest to player's hand and untap a creature."""
+		self.activated_ability = True
+
+		for creature in game.creatures:
+			if creature.id == target_creature_id:
+				creature.tapped = False
+				break
+
+		land_to_return = None
+		for land in game.lands:
+			if land.id == target_land_id:
+				land_to_return = land
+				break
+		land.return_to_hand(game)
+
+		if game.print_moves:
+			player = game.players[game.player_with_priority]
+			print "> {} {} untapped {} with {} returning {}." \
+				.format(
+					player.__class__.__name__, 
+					game.players.index(player), 
+					creature.__class__.__name__, 
+					self.__class__.__name__,
+					land_to_return.__class__.__name__,
+				)
+
+	def adjust_for_untap_phase(self):
+		super(QuirionRanger, self).adjust_for_untap_phase()
+		self.activated_ability = False
+
+
+class BurningTreeEmissary(Creature):
+	"""When Burning-Tree Emissary enters the battlefield, add RedGreen."""
+
+	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
+		super(BurningTreeEmissary, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
+		self.activated = False
+
+	def total_mana_cost(self):
+		return ['RG', 'RG']
+
+	def initial_strength(self):
+		return 2
+
+	def initial_hit_points(self):
+		return 2
+
+	def possible_moves(self, game):
+		"""Returns [] if the player has less than 2 mana, other returns the action to play the bear."""
+		available_mana = game.available_mana()
+		either_count = 0
+		for color, count in available_mana.iteritems():
+			if 'G' in color or 'R' in color: 
+				either_count += count
+		if either_count >= self.mana_cost():
+			card_index = game.players[game.player_with_priority].hand.index(self)
+			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
+		return []
+
+	def play(self, game, mana_to_use, target_creature_id):
+		super(BurningTreeEmissary, self).play(game, mana_to_use, target_creature_id)
+		player = game.players[self.owner]
+		player.temp_mana += ['G', 'R']
 
