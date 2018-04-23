@@ -3,12 +3,22 @@
 class Card(object):
 	"""A fantasy card instance."""
 
-	def __init__(self, owner, card_id=None):	
+	def __init__(self, owner, card_id, tapped=False):	
 		"""Set the initial card_id and owner."""	
 		self.id = card_id
 
 		# the player_number of the owner
 		self.owner = owner
+
+		self.tapped = tapped
+
+		self.color = ''
+
+	def adjust_for_untap_phase(self):
+		self.tapped = False
+
+	def react_to_spell(self, card):
+		pass
 
 	def state_repr(self):
 		"""Return a hashable tuple representing the Card."""
@@ -16,17 +26,17 @@ class Card(object):
 			self.__class__.__name__,
 			self.id, 
 			self.owner, 
+			self.tapped, 
 		)
 
 
 class AnyManaLand(Card):
 	"""A card that produces any color mana."""
 
-	def __init__(self, owner, card_id=None, turn_played=None, is_tapped=False):
+	def __init__(self, owner, card_id, tapped=False, turn_played=None):
 		super(AnyManaLand, self) \
-			.__init__(owner, card_id=card_id)
+			.__init__(owner, card_id, tapped=tapped)
 		self.turn_played = turn_played
-		self.is_tapped = is_tapped
 
 	def possible_moves(self, game):
 		"""Returns [] if the player already played a land, other returns the action to play tapped."""
@@ -52,7 +62,7 @@ class AnyManaLand(Card):
 			self.id, 
 			self.owner, 
 			self.turn_played, 
-			self.is_tapped, 
+			self.tapped, 
 		)
 
 	def mana_provided(self):
@@ -116,7 +126,7 @@ class Fireball(Card):
 				creature.hit_points -= (mana_to_use - 1)
 
 			if game.print_moves:
-				print "> {} {} FIREBALLED CREATURE {} for {} damage!".format(blaster.__class__.__name__, game.players.index(blaster), creature.id, mana_to_use - 1)
+				print "> {} {} fireballed {} for {} damage.".format(blaster.__class__.__name__, game.players.index(blaster), creature.__class__.__name__, mana_to_use - 1)
 		else:
 			blastee = game.opponent(blaster)
 			blastee.hit_points -= (mana_to_use - 1)
@@ -125,8 +135,38 @@ class Fireball(Card):
 				print "> {} {} FIREBALLED for {} damage!".format(blaster.__class__.__name__, game.players.index(blaster), mana_to_use - 1)
 
 
-class Bear(Card):
+class Creature(Card):
+	"""A fantasy creature card instance."""
+
+	def __init__(self, owner, card_id, turn_played):
+		super(Creature, self).__init__(owner, card_id)
+		# the turn number this came into play
+		self.turn_played = turn_played
+
+	def state_repr(self):
+		"""Return a hashable representation of the creature."""
+		return (self.__class__.__name__,
+			 	self.owner, 
+				self.id, 
+				self.turn_played,
+		)
+
+	def can_attack(self, game):
+		"""Returns False if the creature was summoned this turn."""
+		return self.turn_played < game.current_turn and self.tapped == False
+
+
+class Bear(Creature):
 	"""A 2/2 creature."""
+
+	def __init__(self, owner, card_id, turn_played):
+		super(Bear, self).__init__(owner, card_id, turn_played)
+		self.strength = 2
+		self.hit_points = 2
+		self.color = 'G'
+
+	def total_mana_cost(self):
+		return 2
 
 	def possible_moves(self, game):
 		"""Returns [] if the player has less than 2 man, other returns the action to play the bear."""
@@ -137,53 +177,32 @@ class Bear(Card):
 			total_mana += count
 			if 'G' in color:
 				has_green = True
-		if has_green and total_mana > 1:
+		if has_green and total_mana >= self.total_mana_cost():
 			card_index = game.players[game.player_with_priority].hand.index(self)
-			return [('card-bear', card_index, 2, None)]
+			return [('card-bear', card_index, self.total_mana_cost(), None)]
 		return []
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Summon the bear for the player_with_priority."""
-		c = Creature(game.player_with_priority, game.current_turn, strength=5, hit_points=1, creature_id=game.new_card_id)
+		self.id = game.new_card_id
 		summoner = game.players[game.player_with_priority]
 		summoner.hand.remove(self)
 		game.new_card_id += 1
-		c.turn_played = game.current_turn
-		game.creatures.append(c)
+		self.turn_played = game.current_turn
+		game.creatures.append(self)
 		if game.print_moves:
 			player = game.players[game.player_with_priority]
-			print "> {} {} SUMMONED a {}/{} BEAR.".format(player.__class__.__name__, game.players.index(player), c.strength, c.hit_points)
+			print "> {} {} summoned a {}/{} {}.".format(player.__class__.__name__, game.players.index(player), self.strength, self.hit_points, self.__class__.__name__)
 
+class NettleSentinel(Bear):
 
-class Creature():
-	"""A fantasy creature card instance."""
+	def total_mana_cost(self):
+		return 1
 
-	def __init__(self, owner, turn_played, strength=0, hit_points=0, creature_id=None):
-		
-		# an id that is unique among creatures in the game
-		self.id = creature_id
+	def adjust_for_untap_phase(self):
+		pass
 
-		# the player_number of the owner
-		self.owner = owner
+	def react_to_spell(self, card):
+		if 'G' in card.color:
+			self.tapped = False
 
-		# how much hit points this removes when it attacks
-		self.strength = strength 
-
-		# how many hit_points this takes to kill it
-		self.hit_points = hit_points
-
-		# the turn number this came into play
-		self.turn_played = turn_played
-
-	def state_repr(self):
-		"""Return a hashable representation of the creature."""
-		return (self.id, 
-			 	self.owner, 
-			 	self.strength, 
-				self.hit_points,
-				self.turn_played,
-		)
-
-	def can_attack(self, game):
-		"""Returns False if the creature was summoned this turn."""
-		return self.turn_played < game.current_turn

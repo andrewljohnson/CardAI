@@ -35,7 +35,7 @@ class MonteCarloSearchTreeBot(Bot):
 		self.plays = {}
 
 		# enable to log simulation results
-		self.show_simulation_results = True
+		self.show_simulation_results = False
 
 	def play_move(self, game):
 		"""Play a move in game."""

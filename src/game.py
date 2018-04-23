@@ -3,7 +3,7 @@
 import collections
 import itertools
 from bot import Bot
-from card import Bear, Creature, Fireball
+from card import Fireball, NettleSentinel
 from card import Forest, Mountain
 from random import choice
 
@@ -76,7 +76,8 @@ class Game():
 		for player_tuple in state[4]:
 			cards = []
 			for card_tuple in player_tuple[1]:
-				cards.append(eval("{}".format(card_tuple[0]))(card_tuple[2], card_id=card_tuple[1]))
+				cards.append(eval("{}" \
+					.format(card_tuple[0]))(card_tuple[2], card_tuple[1], card_tuple[3],))
 			clone_game.add_player(
 				Bot(
 					hit_points=player_tuple[0], 
@@ -85,12 +86,11 @@ class Game():
 			)
 
 		for creature_tuple in state[5]:
-			c = Creature(
+			classname = creature_tuple[0]
+			c = eval("{}".format(classname))(
 				creature_tuple[1], 
-				creature_tuple[4], 
-				strength=creature_tuple[2], 
-				hit_points=creature_tuple[3], 
-				creature_id=creature_tuple[0]
+				creature_tuple[2], 
+				creature_tuple[3]
 			)
 			clone_game.creatures.append(c)
 
@@ -98,9 +98,9 @@ class Game():
 			classname = land_tuple[0]
 			land = eval("{}".format(classname))(
 				land_tuple[2], 
-				card_id=land_tuple[1],
+				land_tuple[1],
 				turn_played=land_tuple[3],
-				is_tapped=land_tuple[4],
+				tapped=land_tuple[4],
 			)
 			clone_game.lands.append(land)
 
@@ -225,15 +225,15 @@ class Game():
 		for land in self.lands:
 			if tapped == 0:
 				break
-			if land.owner == self.player_with_priority and not land.is_tapped:
-				land.is_tapped = True
+			if land.owner == self.player_with_priority and not land.tapped:
+				land.tapped = True
 				tapped -= 1
 
 	def available_mana(self):
 		"""Returns a map of color to amount of mana from player_with_priority's untapped lands."""
 		mana = collections.Counter()
 		for land in self.lands:
-			if land.owner == self.player_with_priority and not land.is_tapped:
+			if land.owner == self.player_with_priority and not land.tapped:
 				mana.update(land.mana_provided())
 		return dict(mana)
 
@@ -246,6 +246,10 @@ class Game():
 		method_name = move[0]
 		card = self.players[player_number].hand[card_index]
 		card.play(self, mana_to_use, target_creature)
+		for creature in self.creatures:
+			creature.react_to_spell(card)
+		for land in self.lands:
+			land.react_to_spell(card)
 
 	def opponent(self, player):
 		"""Return the player that isn't the given player."""
@@ -356,15 +360,18 @@ class Game():
 	def available_cards(self, moving_player):
 		"""All possible cards in the game."""
 		return [
-			Forest(moving_player, card_id=self.new_card_id),
-			Mountain(moving_player, card_id=self.new_card_id),
-			Fireball(moving_player, card_id=self.new_card_id),
-			Bear(moving_player, card_id=self.new_card_id),
+			Forest(moving_player, self.new_card_id),
+			Mountain(moving_player, self.new_card_id),
+			Fireball(moving_player, self.new_card_id),
+			NettleSentinel(moving_player, self.current_turn, self.new_card_id),
 		]
 
 	def announce_attackers(self, attackers):
 		"""Set attackers, shift priority to the defending player, and update the phase."""
 		self.attackers = attackers
+		for creature_id in self.attackers:
+			attacker = self.creature_with_id(creature_id)
+			attacker.tapped = True
 		if self.print_moves:
 			current_player = self.players[self.player_with_priority]
 			print "> {} {} ANNOUNCED ATTACK." \
@@ -440,7 +447,7 @@ class Game():
 					.format(current_player.__class__.__name__,
 							self.players.index(current_player),
 							total_attack,
-							dead_creatures)
+							[d.__class__.__name__ for d in dead_creatures])
 			else:
 				print "> {} {} ATTACKED, {} killed." \
 					.format(current_player.__class__.__name__, 
@@ -467,11 +474,14 @@ class Game():
 		"""Pass to the next player."""
 		self.current_turn += 1
 		player = self.players[self.current_turn_player()]
-		for land in self.lands:
-			if land.owner == self.player_with_priority:
-				land.is_tapped = False
 
 		self.player_with_priority = self.current_turn_player()
+
+		for card_list in [self.creatures, self.lands]:
+			for card in card_list:
+				if card.owner == self.player_with_priority:
+					card.adjust_for_untap_phase()
+
 		self.phase = "draw"
 		if self.print_moves:
 			print "End of Turn {}".format(self.current_turn)
