@@ -310,6 +310,7 @@ class Game():
 		
 		possible_moves = game.add_card_actions(game, [])
 		possible_moves = game.add_instant_creature_abilities(game, possible_moves)
+		possible_moves = game.add_land_abilities(game, possible_moves)
 		if game.phase == "precombat":
 			possible_moves = game.add_attack_actions(game, possible_moves)
 		elif game.phase == "combat_resolution":
@@ -346,6 +347,13 @@ class Game():
 					if creature.activated_ability_type != 'instant':
 						continue
 				possible_moves += creature.possible_ability_moves(game)
+		return possible_moves
+
+	def add_land_abilities(self, game, possible_moves):
+		"""Return a list of possible actions based on the player_with_priority's lands."""
+		for land in game.creatures:
+			if land.owner == game.player_with_priority:
+				possible_moves += land.possible_ability_moves(game)
 		return possible_moves
 
 	def add_attack_actions(self, game, possible_moves):

@@ -20,17 +20,29 @@ class Card(object):
 	def available_cards():
 		"""All possible cards in the game."""
 		return [
-			#Mountain(moving_player, self.new_card_id),
-			#Fireball(moving_player, self.new_card_id),
-			#Forest(moving_player),
-			#NettleSentinel(moving_player, current_turn),
-			#VinesOfVastwood(moving_player, current_turn),
 			#Mountain,
 			#Fireball,
-			BurningTreeEmissary,
 			Forest,
-			#NettleSentinel,
-			#QuirionRanger,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			BurningTreeEmissary,
+			BurningTreeEmissary,
+			BurningTreeEmissary,
+			BurningTreeEmissary,
+			NettleSentinel,
+			NettleSentinel,
+			NettleSentinel,
+			NettleSentinel,
+			QuirionRanger,
+			QuirionRanger,
+			QuirionRanger,
+			QuirionRanger,
+			VinesOfVastwood,
+			VinesOfVastwood,
+			VinesOfVastwood,
 			VinesOfVastwood,
 		]
 
@@ -114,8 +126,40 @@ class Land(Card):
 		game.lands.remove(self)
 
 
+	def possible_ability_moves(self, game):
+		if land.tapped == True:
+			return []
+		return [
+			(
+				'ability-{}'.format(self.__class__.__name__), 
+				game.creatures.index(self), 
+				[], 
+				creature.id, 
+				land.id
+			)
+		 ]
+
+	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
+		"""Return a forest to player's hand and untap a creature."""
+		self.tapped = True
+
+		if game.print_moves:
+			player = game.players[game.player_with_priority]
+			player.temp_mana += self.mana_provided_list()
+			print "> {} {} tapped {} for {}." \
+				.format(
+					player.__class__.__name__, 
+					game.players.index(player), 
+					self.__class__.__name__, 
+					self.mana_provided_list()
+				)
+
 class Forest(Land):
 	"""A card that produces green mana."""
+
+	def mana_provided_list(self):
+		"""The amount and kind of mana provided."""
+		return ['G']
 
 	def mana_provided(self):
 		"""The amount and kind of mana provided."""
@@ -124,6 +168,10 @@ class Forest(Land):
 
 class Mountain(Land):
 	"""A card that produces red mana."""
+
+	def mana_provided_list(self):
+		"""The amount and kind of mana provided."""
+		return ['R']
 
 	def mana_provided(self):
 		"""The amount and kind of mana provided."""
