@@ -26,16 +26,15 @@ class Card(object):
 			Forest,
 			Forest,
 			Forest,
-			Forest,
-			Forest,
 			BurningTreeEmissary,
 			BurningTreeEmissary,
 			BurningTreeEmissary,
 			BurningTreeEmissary,
-			NettleSentinel,
-			NettleSentinel,
-			NettleSentinel,
-			NettleSentinel,
+			#NettleSentinel,
+			#NettleSentinel,
+			#NettleSentinel,
+			#NettleSentinel,
+			QuirionRanger,
 			QuirionRanger,
 			QuirionRanger,
 			QuirionRanger,
@@ -48,7 +47,17 @@ class Card(object):
 
 	@staticmethod
 	def card_for_state(state):
-		return eval("{}".format(state[0]))(state[1], state[2], tapped=state[3], turn_played=state[4])
+		# eval is too slow
+		# return eval("{}".format(state[0]))(state[1], state[2], tapped=state[3], turn_played=state[4])
+
+		if state[0] == "Forest":
+			return Forest(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "BurningTreeEmissary":
+			return BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "QuirionRanger":
+			return QuirionRanger(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "VinesOfVastwood":
+			return VinesOfVastwood(state[1], state[2], tapped=state[3], turn_played=state[4])
 
 
 	def state_repr(self):
@@ -71,7 +80,7 @@ class Card(object):
 		pass
 
 	def total_mana_cost(self):
-		return []
+		return ()
 
 class Land(Card):
 	"""A card that produces any color mana."""
@@ -82,13 +91,28 @@ class Land(Card):
 	@staticmethod
 	def land_for_state(state):
 		classname = state[0]
+		# eval is slow
+		'''
 		land = eval("{}".format(classname))(
 			state[1],
 			state[2], 
 			tapped=state[3],
 			turn_played=state[4],
 		)
-		return land
+		'''
+		if classname == 'Forest':
+			return Forest(
+				state[1],
+				state[2], 
+				tapped=state[3],
+				turn_played=state[4],
+			)
+		return Mountain(
+			state[1],
+			state[2], 
+			tapped=state[3],
+			turn_played=state[4],
+		)
 
 	def state_repr(self):
 		"""Return a hashable tuple representing the Land."""
@@ -104,54 +128,54 @@ class Land(Card):
 		"""Returns [] if the player already played a land, other returns the action to play tapped."""
 		if game.played_land():
 			return []
-		card_index = game.players[game.player_with_priority].hand.index(self)
-		return [('card-{}'.format(self.__class__.__name__), card_index, [], None)]
+		card_index = game.get_players()[game.player_with_priority].hand.index(self)
+		return [('card-{}'.format(self.__class__.__name__), card_index, (), None)]
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Remove this from the player's hand and add it to game.lands."""
 		self.turn_played = game.current_turn
-		game.lands.append(self)
-		player = game.players[game.player_with_priority]
+		game.get_lands().append(self)
+		player = game.get_players()[game.player_with_priority]
 		player.hand.remove(self)
 		if game.print_moves:
 			print "> {} {} played a {}!" \
-				.format(player.__class__.__name__, game.players.index(player), self.__class__.__name__, self.id, )
+				.format(player.__class__.__name__, game.get_players().index(player), self.__class__.__name__, self.id, )
 
 	def mana_provided(self):
 		"""The amount and kind of mana provided."""
 		return {'BUGRW': 1}
 
 	def return_to_hand(self, game):
-		game.players[self.owner].hand.append(self)
-		game.lands.remove(self)
+		game.get_players()[self.owner].hand.append(self)
+		self.tapped = False
+		game.get_lands().remove(self)
 
 
 	def possible_ability_moves(self, game):
-		if land.tapped == True:
+		if self.tapped == True:
 			return []
 		return [
 			(
-				'ability-{}'.format(self.__class__.__name__), 
-				game.creatures.index(self), 
-				[], 
-				creature.id, 
-				land.id
+				'land_ability-{}'.format(self.__class__.__name__), 
+				game.get_lands().index(self), 
+				(), 
+				None, 
+				None
 			)
 		 ]
 
 	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
-		"""Return a forest to player's hand and untap a creature."""
 		self.tapped = True
-
+		player = game.get_players()[game.player_with_priority]
+		player.temp_mana += list(self.mana_provided_list())
 		if game.print_moves:
-			player = game.players[game.player_with_priority]
-			player.temp_mana += self.mana_provided_list()
-			print "> {} {} tapped {} for {}." \
+			print "> {} {} tapped {} for {}, has {} floating." \
 				.format(
 					player.__class__.__name__, 
-					game.players.index(player), 
+					game.get_players().index(player), 
 					self.__class__.__name__, 
-					self.mana_provided_list()
+					self.mana_provided_list(),
+					player.temp_mana
 				)
 
 class Forest(Land):
@@ -159,7 +183,7 @@ class Forest(Land):
 
 	def mana_provided_list(self):
 		"""The amount and kind of mana provided."""
-		return ['G']
+		return ('G')
 
 	def mana_provided(self):
 		"""The amount and kind of mana provided."""
@@ -171,7 +195,7 @@ class Mountain(Land):
 
 	def mana_provided_list(self):
 		"""The amount and kind of mana provided."""
-		return ['R']
+		return ('R')
 
 	def mana_provided(self):
 		"""The amount and kind of mana provided."""
@@ -187,22 +211,20 @@ class VinesOfVastwood(Card):
 
 	def possible_moves(self, game):
 		"""Returns possible VinesOfVastwood targets."""
-		if game.phase != 'combat_resolution':
-			return []
 		available_mana = game.available_mana()
 		possible_moves = []
-		card_index = game.players[game.player_with_priority].hand.index(self)
+		card_index = game.get_players()[game.player_with_priority].hand.index(self)
 		
 		green_count = 0
 		for color, count in available_mana.iteritems():
 			if 'G' in color:
 				green_count += count
 
-		for c in game.creatures:
+		for c in game.get_creatures():
 			if green_count > 0:
-				possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, ['G'], c.id))
+				possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, ('G'), c.id))
 			if green_count > 1:
-				possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, ['G', 'G'], c.id))
+				possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, ('G', 'G'), c.id))
 
 		return possible_moves
 
@@ -210,22 +232,22 @@ class VinesOfVastwood(Card):
 		"""Pump a creature based on how much mana is used."""
 		creature = game.creature_with_id(target_creature_id)
 		creature.temp_targettable = False
-		caster = game.players[game.player_with_priority]
-		if mana_to_use == ['G', 'G']:
+		caster = game.get_players()[game.player_with_priority]
+		if mana_to_use == ('G', 'G'):
 			creature.temp_strength += 4
 			creature.temp_hit_points += 4
 		if game.print_moves:
-			if mana_to_use == ['G']:
+			if mana_to_use == ('G'):
 				print "> {} {} played VinesOfVastwood on {}." \
 					.format(
 						caster.__class__.__name__, 
-						game.players.index(caster), 
+						game.get_players().index(caster), 
 						creature.__class__.__name__)
 			else:
 				print "> {} {} played kicked VinesOfVastwood on {}, total power now {}." \
 					.format(
 						caster.__class__.__name__, 
-						game.players.index(caster), 
+						game.get_players().index(caster), 
 						creature.__class__.__name__,
 						creature.total_damage())
 
@@ -236,7 +258,7 @@ class Fireball(Card):
 		"""Returns possible fireballs targets and amounts."""
 		available_mana = game.available_mana()
 		possible_moves = []
-		card_index = game.players[game.player_with_priority].hand.index(self)
+		card_index = game.get_players()[game.player_with_priority].hand.index(self)
 		
 		has_red = False
 		total_mana = 0
@@ -247,16 +269,16 @@ class Fireball(Card):
 
 		if has_red and total_mana > 1:
 			for mana in range(2, total_mana+1):
-				possible_moves.append(('card-fireball', card_index, ['R', mana-1], None))
-			for c in game.creatures:
+				possible_moves.append(('card-fireball', card_index, ('R', mana-1), None))
+			for c in game.get_creatures():
 				if c.targettable and c.temp_targettable:
 					for mana in range(2, total_mana+1):
-						possible_moves.append(('card-fireball-creature', card_index, ['R', mana-1], c.id))
+						possible_moves.append(('card-fireball-creature', card_index, ('R', mana-1), c.id))
 		return possible_moves
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Decrement hit_points equal to blaster's mana from blastee."""
-		blaster = game.players[game.player_with_priority]
+		blaster = game.get_players()[game.player_with_priority]
 		blaster.hand.remove(self)
 
 		colorless = 0
@@ -265,25 +287,25 @@ class Fireball(Card):
 				colorless = mana
 				break
 		if target_creature_id:
-			blaster = game.players[game.player_with_priority]
+			blaster = game.get_players()[game.player_with_priority]
 			creature = game.creature_with_id(target_creature_id)
 			if (colorless) >= creature.hit_points:
 				if creature.id in game.attackers:
 					game.attackers.remove(creature.id)
-				game.creatures.remove(creature)
+				game.get_creatures().remove(creature)
 			else:
 				creature.hit_points -= colorless
 
 			if game.print_moves:
 				print "> {} {} fireballed {} for {} damage." \
-				.format(blaster.__class__.__name__, game.players.index(blaster), creature.__class__.__name__, colorless)
+				.format(blaster.__class__.__name__, game.get_players().index(blaster), creature.__class__.__name__, colorless)
 		else:
 			blastee = game.opponent(blaster)
 			blastee.hit_points -= (colorless)
 
 			if game.print_moves:
 				print "> {} {} FIREBALLED for {} damage!" \
-				.format(blaster.__class__.__name__, game.players.index(blaster), colorless)
+				.format(blaster.__class__.__name__, game.get_players().index(blaster), colorless)
 
 
 class Creature(Card):
@@ -303,12 +325,22 @@ class Creature(Card):
 	@staticmethod
 	def creature_for_state(state):
 		classname = state[0]
-		c = eval("{}".format(classname))(
-			state[1], 
-			state[2], 
-			tapped=state[3],
-			turn_played=state[4],
-		)
+
+		# eval is too slow
+		'''
+			c = eval("{}".format(classname))(
+				state[1], 
+				state[2], 
+				tapped=state[3],
+				turn_played=state[4],
+			)
+		'''
+
+		if classname == "QuirionRanger":
+			c = QuirionRanger(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif classname == "BurningTreeEmissary":
+			c = BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
+		
 		c.targettable = state[5]
 		c.temp_strength = state[6]
 		c.temp_hit_points = state[7]
@@ -365,12 +397,12 @@ class Creature(Card):
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Summon the bear for the player_with_priority."""
-		summoner = game.players[game.player_with_priority]
+		summoner = game.get_players()[game.player_with_priority]
 		summoner.hand.remove(self)
 		self.turn_played = game.current_turn
-		game.creatures.append(self)
+		game.get_creatures().append(self)
 		if game.print_moves:
-			player = game.players[game.player_with_priority]
+			player = game.get_players()[game.player_with_priority]
 			print "> {} {} summoned a {}/{} {}.".format(player.__class__.__name__, game.players.index(player), self.strength, self.hit_points, self.__class__.__name__)
 
 	def possible_moves(self, game):
@@ -383,7 +415,7 @@ class Creature(Card):
 			if 'G' in color:
 				has_green = True
 		if has_green and total_mana >= self.mana_cost():
-			card_index = game.players[game.player_with_priority].hand.index(self)
+			card_index = game.get_players()[game.player_with_priority].hand.index(self)
 			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
 		return []
 
@@ -401,7 +433,7 @@ class Bear(Creature):
 		return 2
 
 	def total_mana_cost(self):
-		return ['G', 1]
+		return ('G', 1)
 
 
 class NettleSentinel(Creature):
@@ -412,7 +444,7 @@ class NettleSentinel(Creature):
 	"""
 
 	def total_mana_cost(self):
-		return ['G']
+		return ('G')
 
 	def initial_strength(self):
 		return 2
@@ -440,7 +472,7 @@ class QuirionRanger(Creature):
 		self.activated = False
 
 	def total_mana_cost(self):
-		return ['G']
+		return ('G')
 
 	def initial_strength(self):
 		return 1
@@ -449,45 +481,60 @@ class QuirionRanger(Creature):
 		return 1
 
 	def possible_ability_moves(self, game):
+		if self.activated_ability or self.turn_played == game.current_turn:
+			return []
+		untapped_forest = None
+		tapped_forest = None
+		for land in game.get_lands():
+			if land.owner != self.owner:
+				continue
+			if land.__class__.__name__ == "Forest" and land.tapped:
+				tapped_forest = land
+
+			if land.__class__.__name__ == "Forest" and not land.tapped:
+				untapped_forest = land
+		different_forest_targets = []
+		if tapped_forest:
+			different_forest_targets.append(tapped_forest)
+		if untapped_forest:
+			different_forest_targets.append(untapped_forest)
 		possible_moves = []
-		if not self.activated_ability and self.turn_played != game.current_turn:
-			for land in game.lands:
-				if land.owner == self.owner and land.__class__.__name__ == "Forest":
-					for creature in game.creatures:
-						if creature.owner == self.owner:
-							possible_moves.append(
-								(
-									'ability-{}'.format(self.__class__.__name__), 
-									game.creatures.index(self), 
-									[], 
-									creature.id, 
-									land.id
-								)
+		for land in different_forest_targets:
+				for creature in game.get_creatures():
+					if creature.owner == self.owner:
+						possible_moves.append(
+							(
+								'ability-{}'.format(self.__class__.__name__), 
+								game.get_creatures().index(self), 
+								(), 
+								creature.id, 
+								land.id
 							)
+						)
 		return possible_moves
 
 	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
 		"""Return a forest to player's hand and untap a creature."""
 		self.activated_ability = True
 
-		for creature in game.creatures:
+		for creature in game.get_creatures():
 			if creature.id == target_creature_id:
 				creature.tapped = False
 				break
 
 		land_to_return = None
-		for land in game.lands:
+		for land in game.get_lands():
 			if land.id == target_land_id:
 				land_to_return = land
 				break
 		land.return_to_hand(game)
 
 		if game.print_moves:
-			player = game.players[game.player_with_priority]
+			player = game.get_players()[game.player_with_priority]
 			print "> {} {} untapped {} with {} returning {}." \
 				.format(
 					player.__class__.__name__, 
-					game.players.index(player), 
+					game.get_players().index(player), 
 					creature.__class__.__name__, 
 					self.__class__.__name__,
 					land_to_return.__class__.__name__,
@@ -506,7 +553,7 @@ class BurningTreeEmissary(Creature):
 		self.activated = False
 
 	def total_mana_cost(self):
-		return ['RG', 'RG']
+		return ('RG', 'RG')
 
 	def initial_strength(self):
 		return 2
@@ -522,12 +569,12 @@ class BurningTreeEmissary(Creature):
 			if 'G' in color or 'R' in color: 
 				either_count += count
 		if either_count >= self.mana_cost():
-			card_index = game.players[game.player_with_priority].hand.index(self)
+			card_index = game.get_players()[game.player_with_priority].hand.index(self)
 			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
 		return []
 
 	def play(self, game, mana_to_use, target_creature_id):
 		super(BurningTreeEmissary, self).play(game, mana_to_use, target_creature_id)
-		player = game.players[self.owner]
-		player.temp_mana += ['G', 'R']
+		player = game.get_players()[self.owner]
+		player.temp_mana += list(('G', 'R'))
 

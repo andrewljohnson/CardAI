@@ -4,15 +4,17 @@ from random import choice
 
 
 class Bot(object):
-	def __init__(self, hit_points=0):
+	def __init__(self, hit_points=0, temp_mana=None):
 		"""Set the initial stats and cards."""
 		self.hit_points = hit_points
 		self.hand = []
 		self.temp_mana = []
+		if temp_mana:
+			self.temp_mana = list(temp_mana)
 
 	def play_move(self, game):
 		"""Play a random move in game."""
-		move = choice(game.legal_plays(game.states[:]))
+		move = choice(list(game.legal_plays(game.states[:])))
 		game.do_move(move)
 
 	def state_repr(self):

@@ -7,7 +7,7 @@ from random import choice
 
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, hit_points=0, max_moves=60, simulation_time=4, C=1.4):
+	def __init__(self, hit_points=0, max_moves=30, simulation_time=10, C=1.4):
 		"""
 			Adjust simulation_time and max_moves to taste.
 
@@ -32,12 +32,13 @@ class MonteCarloSearchTreeBot(Bot):
 		self.plays = {}
 
 		# enable to log simulation results
-		self.show_simulation_results = False
+		self.show_simulation_results = True
 
 	def play_move(self, game):
 		"""Play a move in game."""
 		move = self.get_play()
 		game.do_move(move)
+		# print game.state_repr()
 
 	def get_play(self):
 		"""
@@ -101,6 +102,7 @@ class MonteCarloSearchTreeBot(Bot):
 			curr_play_num = state[1]
 
 			legal = self.game.legal_plays(states_copy)
+			# print "chose from {}".format(legal)
 			moves_states = [(p, self.game.next_state(state, p)) for p in legal]
 			if all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
@@ -116,6 +118,8 @@ class MonteCarloSearchTreeBot(Bot):
 				move, state = choice(moves_states)
 
 			states_copy.append(state)
+
+			# print "moved {} to sim state {}".format(move, state)
 
 			# `player` here and below refers to the player
 			# who moved into that particular state.
