@@ -2,7 +2,6 @@
 
 from bot import Bot
 from game import Game
-from rando import RandomBot
 
 
 class MonteCarloBot(Bot):
