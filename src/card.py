@@ -39,7 +39,7 @@ class Card(object):
 			#QuirionRanger,
 			#QuirionRanger,
 			#QuirionRanger,
-			SkarrganPitSkulk,
+			#SkarrganPitSkulk,
 			#VinesOfVastwood,
 			#VinesOfVastwood,
 			#VinesOfVastwood,
@@ -57,6 +57,10 @@ class Card(object):
 			return BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "SkarrganPitSkulk":
 			return SkarrganPitSkulk(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "NestInvader":
+			return NestInvader(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "EldraziSpawnToken":
+			return EldraziSpawnToken(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "QuirionRanger":
 			return QuirionRanger(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "VinesOfVastwood":
@@ -348,6 +352,10 @@ class Creature(Card):
 			c = BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif classname == "SkarrganPitSkulk":
 			c = SkarrganPitSkulk(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif classname == "NestInvader":
+			c = NestInvader(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif classname == "EldraziSpawnToken":
+			c = EldraziSpawnToken(state[1], state[2], tapped=state[3], turn_played=state[4])
 		
 		c.targettable = state[5]
 		c.temp_strength = state[6]
@@ -427,13 +435,10 @@ class Creature(Card):
 	def possible_moves(self, game):
 		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
 		available_mana = game.available_mana()
-		has_green = False
 		total_mana = 0
 		for color, count in available_mana.iteritems():
 			total_mana += count
-			if 'G' in color:
-				has_green = True
-		if has_green and total_mana >= self.mana_cost():
+		if total_mana >= self.mana_cost():
 			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
 			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
 		return []
@@ -444,7 +449,31 @@ class Creature(Card):
 	def can_be_blocked_by(self, creature):
 		return True
 
-class Bear(Creature):
+	def possible_ability_moves(self, game):
+		return []
+
+	def creature_types(self):
+		return []
+
+
+class GreenCreature(Creature):
+
+	def possible_moves(self, game):
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
+		available_mana = game.available_mana()
+		has_green = False
+		total_mana = 0
+		for color, count in available_mana.iteritems():
+			total_mana += count
+			if type(color) != int and 'G' in color:
+				has_green = True
+		if has_green and total_mana >= self.mana_cost():
+			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
+			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
+		return []
+
+
+class Bear(GreenCreature):
 	"""A 2/2 creature."""
 
 	def initial_strength():
@@ -457,7 +486,7 @@ class Bear(Creature):
 		return ('G', 1)
 
 
-class NettleSentinel(Creature):
+class NettleSentinel(GreenCreature):
 	"""
 		Nettle Sentinel doesn't untap during your untap step.
 		
@@ -480,8 +509,11 @@ class NettleSentinel(Creature):
 		if 'G' in card.total_mana_cost():
 			self.tapped = False
 
+	def creature_types(self):
+		return ['Elf', 'Warrior']
 
-class QuirionRanger(Creature):
+
+class QuirionRanger(GreenCreature):
 	"""
 		Nettle Sentinel doesn't untap during your untap step.
 		
@@ -565,8 +597,11 @@ class QuirionRanger(Creature):
 		super(QuirionRanger, self).adjust_for_untap_phase()
 		self.activated_ability = False
 
+	def creature_types(self):
+		return ['Elf']
 
-class BurningTreeEmissary(Creature):
+
+class BurningTreeEmissary(GreenCreature):
 	"""When Burning-Tree Emissary enters the battlefield, add RedGreen."""
 
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
@@ -599,9 +634,11 @@ class BurningTreeEmissary(Creature):
 		player = game.get_players()[self.owner]
 		player.temp_mana += list(('G', 'R'))
 
+	def creature_types(self):
+		return ['Human', 'Shaman']
 
 
-class SkarrganPitSkulk(Creature):
+class SkarrganPitSkulk(GreenCreature):
 	"""
 		Bloodthirst 1 (If an opponent was dealt damage this turn, this creature enters the 
 		battlefield with a +1/+1 counter on it.)
@@ -627,3 +664,101 @@ class SkarrganPitSkulk(Creature):
 		if creature.total_damage() < self.total_damage():
 			return False
 		return True
+
+	def creature_types(self):
+		return ['Human', 'Warrior']
+
+
+class NestInvader(GreenCreature):
+	"""
+		When Nest Invader enters the battlefield, create a 0/1 colorless Eldrazi Spawn creature token. 
+		It has "Sacrifice this creature: Add Colorless."
+	"""
+
+	def total_mana_cost(self):
+		return ('G', 1)
+
+	def initial_strength(self):
+		return 2
+
+	def initial_hit_points(self):
+		return 2
+
+	def play(self, game, mana_to_use, target_creature_id):
+		super(NestInvader, self).play(game, mana_to_use, target_creature_id)
+		token = EldraziSpawnToken(self.owner, None, tapped=False, turn_played=game.current_turn)
+		token.card_id = game.new_card_id
+		game.new_card_id += 1
+		game.get_players()[self.owner].hand.append(token)
+		token.play(game, 0, target_creature_id)
+
+	def creature_types(self):
+		return ['Eldrazi', 'Drone']
+
+
+class EldraziSpawnToken(Creature):
+	"""
+		An 0/1 colorless Eldrazi Spawn creature token. 
+		It has "Sacrifice this creature: Add Colorless."
+	"""
+
+	def total_mana_cost(self):
+		return (0)
+
+	def initial_strength(self):
+		return 0
+
+	def initial_hit_points(self):
+		return 1
+
+	def possible_ability_moves(self, game):
+		return [
+			(
+				'ability-{}'.format(self.__class__.__name__), 
+				game.get_creatures().index(self), 
+				(), 
+				None, 
+				None
+			)
+		]
+
+	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
+		if self.id in game.attackers:
+			if type(game.attackers) == tuple: 
+				print game.attackers
+			game.attackers.remove(self.id)
+		if self.id in game.blockers:
+			game.blockers.remove(self.id)
+
+		block_where_attacking = None
+		block_where_blocking = None
+
+		for block in game.blocks:
+			if block[0] == self.id:
+				block_where_attacking = block
+			if self.id in block[1]:
+				block_where_blocking = block
+
+		if block_where_attacking:
+			game.blocks.remove(block_where_attacking)
+		if block_where_blocking:
+			list_tuple = list(block_where_blocking[1])
+			list_tuple.remove(self.id)
+			list_block = list(block_where_blocking)
+			list_block[1] = list_tuple
+			block_where_blocking = tuple(list_block)
+
+		game.creatures.remove(self)
+		player = game.get_players()[game.player_with_priority]
+		player.temp_mana += [1]
+
+		if game.print_moves:
+			print "> {} {} sacrificed {}." \
+				.format(
+					player.__class__.__name__, 
+					game.player_with_priority, 
+					self.__class__.__name__, 
+				)
+
+	def creature_types(self):
+		return ['Eldrazi', 'Token']

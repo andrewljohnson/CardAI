@@ -4,7 +4,7 @@ import collections
 import itertools
 from bot import Bot
 from card import Card, Creature, Land
-from card import Forest, QuirionRanger, BurningTreeEmissary, SkarrganPitSkulk, VinesOfVastwood
+from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, SkarrganPitSkulk, VinesOfVastwood
 from random import choice
 
 
@@ -300,7 +300,7 @@ class Game():
 			temp_index_to_remove = 0
 			found_temp = False
 			for temp_mana in self.get_players()[self.player_with_priority].temp_mana:
-				if temp_mana in mana:
+				if type(temp_mana) == str and temp_mana in mana:
 					colored.pop(0)
 					found_temp = True
 					break
@@ -315,8 +315,18 @@ class Game():
 						l.tapped = True
 						colored.pop(0)
 						break
-
 		while colorless > 0:
+			temp_index_to_remove = 0
+			found_temp = False
+			for temp_mana in self.get_players()[self.player_with_priority].temp_mana:
+				if type(temp_mana) == int:
+					colorless -= temp_mana
+					found_temp = True
+					break
+				temp_index_to_remove += 1
+			if found_temp:
+				del self.get_players()[self.player_with_priority].temp_mana[temp_index_to_remove]
+				continue
 			for l in self.get_lands():
 				if l.owner == self.player_with_priority and not l.tapped:
 					l.tapped = True
@@ -477,14 +487,15 @@ class Game():
 
 	def initial_draw(self, moving_player):
 		"""Add some cards to each player's hand."""
-	 	if moving_player == 0:
+	 	if True or moving_player == 0:
 		 	#for i in range(0,7):
 		 	#	self.draw_card(moving_player);
 		 	self.draw_card(moving_player, card=Forest);
 		 	self.draw_card(moving_player, card=Forest);
-		 	self.draw_card(moving_player, card=SkarrganPitSkulk);
-		 	self.draw_card(moving_player, card=SkarrganPitSkulk);
-		 	self.draw_card(moving_player, card=SkarrganPitSkulk);
+		 	self.draw_card(moving_player, card=Forest);
+		 	self.draw_card(moving_player, card=NestInvader);
+		 	self.draw_card(moving_player, card=NestInvader);
+		 	self.draw_card(moving_player, card=NestInvader);
 		if self.print_moves:
 			current_player = self.get_players()[moving_player]
 			hand_strings = [type(c).__name__ for c in current_player.get_hand()]
@@ -524,7 +535,7 @@ class Game():
 
 
 		current_player = self.get_players()[moving_player]
-		if True or self.phase != "draw":
+		if self.phase != "draw":
 			current_player.get_hand().append(new_card)
 			self.new_card_id += 1
 
