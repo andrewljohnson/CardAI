@@ -22,27 +22,28 @@ class Card(object):
 		return [
 			#Mountain,
 			#Fireball,
+			#Forest,
+			#Forest,
+			#Forest,
 			Forest,
-			Forest,
-			Forest,
-			Forest,
-			BurningTreeEmissary,
-			BurningTreeEmissary,
-			BurningTreeEmissary,
-			BurningTreeEmissary,
+			#BurningTreeEmissary,
+			#BurningTreeEmissary,
+			#BurningTreeEmissary,
+			#BurningTreeEmissary,
 			#NettleSentinel,
 			#NettleSentinel,
 			#NettleSentinel,
 			#NettleSentinel,
-			QuirionRanger,
-			QuirionRanger,
-			QuirionRanger,
-			QuirionRanger,
-			QuirionRanger,
-			VinesOfVastwood,
-			VinesOfVastwood,
-			VinesOfVastwood,
-			VinesOfVastwood,
+			#QuirionRanger,
+			#QuirionRanger,
+			#QuirionRanger,
+			#QuirionRanger,
+			#QuirionRanger,
+			SkarrganPitSkulk,
+			#VinesOfVastwood,
+			#VinesOfVastwood,
+			#VinesOfVastwood,
+			#VinesOfVastwood,
 		]
 
 	@staticmethod
@@ -54,6 +55,8 @@ class Card(object):
 			return Forest(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "BurningTreeEmissary":
 			return BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "SkarrganPitSkulk":
+			return SkarrganPitSkulk(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "QuirionRanger":
 			return QuirionRanger(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "VinesOfVastwood":
@@ -128,7 +131,7 @@ class Land(Card):
 		"""Returns [] if the player already played a land, other returns the action to play tapped."""
 		if game.played_land():
 			return []
-		card_index = game.get_players()[game.player_with_priority].hand.index(self)
+		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
 		return [('card-{}'.format(self.__class__.__name__), card_index, (), None)]
 
 	def play(self, game, mana_to_use, target_creature_id):
@@ -136,9 +139,9 @@ class Land(Card):
 		self.turn_played = game.current_turn
 		game.get_lands().append(self)
 		player = game.get_players()[game.player_with_priority]
-		player.hand.remove(self)
+		player.get_hand().remove(self)
 		if game.print_moves:
-			print "> {} {} played a {}!" \
+			print "> {} {} played a {}." \
 				.format(player.__class__.__name__, game.get_players().index(player), self.__class__.__name__, self.id, )
 
 	def mana_provided(self):
@@ -146,7 +149,7 @@ class Land(Card):
 		return {'BUGRW': 1}
 
 	def return_to_hand(self, game):
-		game.get_players()[self.owner].hand.append(self)
+		game.get_players()[self.owner].get_hand().append(self)
 		self.tapped = False
 		game.get_lands().remove(self)
 
@@ -213,7 +216,7 @@ class VinesOfVastwood(Card):
 		"""Returns possible VinesOfVastwood targets."""
 		available_mana = game.available_mana()
 		possible_moves = []
-		card_index = game.get_players()[game.player_with_priority].hand.index(self)
+		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
 		
 		green_count = 0
 		for color, count in available_mana.iteritems():
@@ -258,7 +261,7 @@ class Fireball(Card):
 		"""Returns possible fireballs targets and amounts."""
 		available_mana = game.available_mana()
 		possible_moves = []
-		card_index = game.get_players()[game.player_with_priority].hand.index(self)
+		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
 		
 		has_red = False
 		total_mana = 0
@@ -279,7 +282,7 @@ class Fireball(Card):
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Decrement hit_points equal to blaster's mana from blastee."""
 		blaster = game.get_players()[game.player_with_priority]
-		blaster.hand.remove(self)
+		blaster.get_hand().remove(self)
 
 		colorless = 0
 		for mana in mana_to_use:
@@ -301,10 +304,11 @@ class Fireball(Card):
 				.format(blaster.__class__.__name__, game.get_players().index(blaster), creature.__class__.__name__, colorless)
 		else:
 			blastee = game.opponent(blaster)
-			blastee.hit_points -= (colorless)
+			blastee.hit_points -= colorless
+			game.damage_to_players[game.players.index(blastee)] += colorless
 
 			if game.print_moves:
-				print "> {} {} FIREBALLED for {} damage!" \
+				print "> {} {} fireballed for {} damage." \
 				.format(blaster.__class__.__name__, game.get_players().index(blaster), colorless)
 
 
@@ -321,6 +325,8 @@ class Creature(Card):
 		self.temp_targettable = True
 		self.activated_ability = False
 		self.activated_ability_type = 'instant'
+		self.strength_counters = 0
+		self.hit_point_counters = 0
 
 	@staticmethod
 	def creature_for_state(state):
@@ -340,6 +346,8 @@ class Creature(Card):
 			c = QuirionRanger(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif classname == "BurningTreeEmissary":
 			c = BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif classname == "SkarrganPitSkulk":
+			c = SkarrganPitSkulk(state[1], state[2], tapped=state[3], turn_played=state[4])
 		
 		c.targettable = state[5]
 		c.temp_strength = state[6]
@@ -347,6 +355,8 @@ class Creature(Card):
 		c.temp_targettable =state[8]
 		c.activated_ability = state[9]
 		c.activated_ability_type = state[10]
+		c.strength_counters = state[11]
+		c.hit_point_counters = state[12]
 
 		return c
 
@@ -363,6 +373,8 @@ class Creature(Card):
 				self.temp_targettable,
 				self.activated_ability,
 				self.activated_ability_type,
+				self.strength_counters,
+				self.hit_point_counters,
 		)
 
 	def initial_strength():
@@ -377,10 +389,10 @@ class Creature(Card):
 		self.temp_targettable = True
 
 	def total_damage(self):
-		return self.strength + self.temp_strength
+		return self.strength + self.temp_strength + self.strength_counters
 
 	def total_hit_points(self):
-		return self.hit_points + self.temp_hit_points
+		return self.hit_points + self.temp_hit_points + self.hit_point_counters
 
 	def mana_cost(self):
 		colorless = 0
@@ -398,12 +410,19 @@ class Creature(Card):
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Summon the bear for the player_with_priority."""
 		summoner = game.get_players()[game.player_with_priority]
-		summoner.hand.remove(self)
+		summoner.get_hand().remove(self)
 		self.turn_played = game.current_turn
 		game.get_creatures().append(self)
 		if game.print_moves:
 			player = game.get_players()[game.player_with_priority]
-			print "> {} {} summoned a {}/{} {}.".format(player.__class__.__name__, game.players.index(player), self.strength, self.hit_points, self.__class__.__name__)
+			print "> {} {} summoned a {}/{} {}." \
+				.format(
+					player.__class__.__name__, 
+					game.players.index(player), 
+					self.total_damage(), 
+					self.total_hit_points(), 
+					self.__class__.__name__
+				)
 
 	def possible_moves(self, game):
 		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
@@ -415,13 +434,15 @@ class Creature(Card):
 			if 'G' in color:
 				has_green = True
 		if has_green and total_mana >= self.mana_cost():
-			card_index = game.get_players()[game.player_with_priority].hand.index(self)
+			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
 			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
 		return []
 
 	def possible_ability_moves(self, game):
 		return []
 
+	def can_be_blocked_by(self, creature):
+		return True
 
 class Bear(Creature):
 	"""A 2/2 creature."""
@@ -569,7 +590,7 @@ class BurningTreeEmissary(Creature):
 			if 'G' in color or 'R' in color: 
 				either_count += count
 		if either_count >= self.mana_cost():
-			card_index = game.get_players()[game.player_with_priority].hand.index(self)
+			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
 			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
 		return []
 
@@ -578,3 +599,31 @@ class BurningTreeEmissary(Creature):
 		player = game.get_players()[self.owner]
 		player.temp_mana += list(('G', 'R'))
 
+
+
+class SkarrganPitSkulk(Creature):
+	"""
+		Bloodthirst 1 (If an opponent was dealt damage this turn, this creature enters the 
+		battlefield with a +1/+1 counter on it.)
+		Creatures with power less than Skarrgan Pit-Skulk's power can't block it.
+	"""
+
+	def total_mana_cost(self):
+		return ('G')
+
+	def initial_strength(self):
+		return 1
+
+	def initial_hit_points(self):
+		return 1
+
+	def play(self, game, mana_to_use, target_creature_id):
+		if game.opponent_was_dealt_damage():
+			self.strength_counters += 1
+			self.hit_point_counters += 1
+		super(SkarrganPitSkulk, self).play(game, mana_to_use, target_creature_id)
+
+	def can_be_blocked_by(self, creature):
+		if creature.total_damage() < self.total_damage():
+			return False
+		return True

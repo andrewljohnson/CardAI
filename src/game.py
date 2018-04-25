@@ -4,7 +4,7 @@ import collections
 import itertools
 from bot import Bot
 from card import Card, Creature, Land
-from card import Forest, QuirionRanger, BurningTreeEmissary, VinesOfVastwood
+from card import Forest, QuirionRanger, BurningTreeEmissary, SkarrganPitSkulk, VinesOfVastwood
 from random import choice
 
 
@@ -49,24 +49,33 @@ class Game():
 		self.lazy_creatures = False 
 		self.lazy_lands = False 
 
+		self.damage_to_players = [0, 0]
+
 		# a list of previous states the game has been in
 		self.states = [self.state_repr()]
+
+		self.cached_legal_moves = None 
 
 		# whether to print each move, typically False during simulation, but true for a real game
 		self.print_moves = False 
 
+
 	def state_repr(self):
 		"""A hashable representation of the game state."""
+		players = self.players if self.lazy_players else [p.state_repr() for p in self.get_players()]
+		creatures = self.creatures if self.lazy_creatures else [c.state_repr() for c in self.get_creatures()]
+		lands = self.lands if self.lazy_lands else [l.state_repr() for l in self.get_lands()]
 		return (self.current_turn, 
 				self.player_with_priority, 
 				self.new_card_id, 
 				self.phase, 
-				tuple([p.state_repr() for p in self.get_players()]),
-				tuple([c.state_repr() for c in self.get_creatures()]),
-				tuple([l.state_repr() for l in self.get_lands()]),
+				tuple(players),
+				tuple(creatures),
+				tuple(lands),
 				tuple(self.attackers),
 				tuple(self.blockers),
 				tuple(self.blocks),
+				tuple(self.damage_to_players),
 		)
 
 	def game_for_state(self, state, lazy=False):
@@ -104,6 +113,7 @@ class Game():
 		clone_game.attackers = list(state[7])
 		clone_game.blockers = list(state[8])
 		clone_game.blocks = list(state[9])
+		clone_game.damage_to_players = list(state[10])
 
 		return clone_game
 
@@ -131,13 +141,13 @@ class Game():
 		if not self.lazy_players:
 			return self.players
 		self.lazy_players = False
-		instantiated_players = [] 
 		player_tuples = self.players[:]
 		self.players = []
 		for player_tuple in player_tuples:
 			player = Bot(hit_points=player_tuple[0], temp_mana=player_tuple[2])
+			player.lazy_hand = True
 			for card_tuple in player_tuple[1]:
-				player.hand.append(Card.card_for_state(card_tuple))
+				player.hand.append(card_tuple)
 			self.add_player(player)
 		return self.players
 
@@ -232,43 +242,46 @@ class Game():
 		"""Return the player_number of the player due to make move in state."""
 		return state[1]
 
-	def next_state(self, state, move):
+	def next_state(self, state, move, game=None, repr_state=True):
 		"""Return a new state after applying the move to state."""
-		clone_game = self.game_for_state(state, lazy=True)
-		return clone_game.do_move(move)
+		if game:
+			clone_game = game
+		else:
+			clone_game = self.game_for_state(state, lazy=True)
 
-	def do_move(self, move):
 		"""Do the move and increment the turn."""
 		mana_to_use = move[2]
 		if move[0].startswith('card'):
-			self.play_card_move(move)
-			self.tap_lands_for_mana(mana_to_use)
+			clone_game.play_card_move(move)
+			clone_game.tap_lands_for_mana(mana_to_use)
 		elif move[0].startswith('ability'):
-			self.play_ability_move(move)
-			self.tap_lands_for_mana(mana_to_use)
+			clone_game.play_ability_move(move)
+			clone_game.tap_lands_for_mana(mana_to_use)
 		elif move[0].startswith('land_ability'):
-			self.play_land_ability_move(move)
-			self.tap_lands_for_mana(mana_to_use)
+			clone_game.play_land_ability_move(move)
+			clone_game.tap_lands_for_mana(mana_to_use)
 		else:
 			# too slow: eval("self.{}".format(move[0]))(move[1])
 			if move[0] == 'initial_draw':
-				self.initial_draw(move[1])
+				clone_game.initial_draw(move[1])
 			elif move[0] == 'draw_card':
-				self.draw_card(move[1])
+				clone_game.draw_card(move[1])
 			elif move[0] == 'finish_blocking':
-				self.finish_blocking(move[1])
+				clone_game.finish_blocking(move[1])
 			elif move[0] == 'resolve_combat':
-				self.resolve_combat(move[1])
+				clone_game.resolve_combat(move[1])
 			elif move[0] == 'pass_the_turn':
-				self.pass_the_turn(move[1])
+				clone_game.pass_the_turn(move[1])
 			elif move[0] == 'announce_attackers':
-				self.announce_attackers(move[1])
+				clone_game.announce_attackers(move[1])
 			elif move[0] == 'assign_blockers':
-				self.assign_blockers(move[1])
+				clone_game.assign_blockers(move[1])
 
-		state_rep = self.state_repr()
-		self.states.append(state_rep)
-		return state_rep
+		state_rep = None
+		if repr_state:
+			state_rep = clone_game.state_repr()
+			clone_game.states.append(state_rep)
+		return state_rep, clone_game
 
 	def tap_lands_for_mana(self, mana_to_tap):
 		"""Tap land_to_tap lands to pay for a spell or effect."""
@@ -331,7 +344,7 @@ class Game():
 		target_creature = move[3]
 		mana_to_use = move[2]
 		card_index = move[1]
-		card = self.get_players()[player_number].hand[card_index]
+		card = self.get_players()[player_number].get_hand()[card_index]
 		card.play(self, mana_to_use, target_creature)
 		for creature in self.get_creatures():
 			creature.react_to_spell(card)
@@ -374,15 +387,18 @@ class Game():
 			if p != player:
 				return p
 
-	def legal_plays(self, state_history):
+	def legal_plays(self, state_history, cached_game=None):
 		"""
 			Return a list of all legal moves given the state_history. 
 		
 			We only use the most recent state in state_history for now.
 		"""
 		
-		game_state = state_history[-1]
-		game = self.game_for_state(game_state, lazy=True)
+		if cached_game:
+			game = cached_game
+		else:
+			game_state = state_history[-1]
+			game = self.game_for_state(game_state, lazy=True)
 
 		if game.phase == "setup":
 			return [('initial_draw', game.player_with_priority, 0),]			
@@ -415,7 +431,7 @@ class Game():
 	def add_card_actions(self, game, possible_moves):
 		"""Return a list of possible actions based on the player_with_priority's hand."""
 		card_types_added = []
-		for card in game.get_players()[game.player_with_priority].hand:
+		for card in game.get_players()[game.player_with_priority].get_hand():
 			if card.__class__ not in card_types_added:
 				if game.phase == 'combat_resolution':
 					if card.card_type != 'instant':
@@ -465,17 +481,18 @@ class Game():
 		 	#for i in range(0,7):
 		 	#	self.draw_card(moving_player);
 		 	self.draw_card(moving_player, card=Forest);
-		 	self.draw_card(moving_player, card=QuirionRanger);
-		 	self.draw_card(moving_player, card=BurningTreeEmissary);
-		 	self.draw_card(moving_player, card=VinesOfVastwood);
+		 	self.draw_card(moving_player, card=Forest);
+		 	self.draw_card(moving_player, card=SkarrganPitSkulk);
+		 	self.draw_card(moving_player, card=SkarrganPitSkulk);
+		 	self.draw_card(moving_player, card=SkarrganPitSkulk);
 		if self.print_moves:
 			current_player = self.get_players()[moving_player]
-			hand_strings = [type(c).__name__ for c in current_player.hand]
+			hand_strings = [type(c).__name__ for c in current_player.get_hand()]
 			print "> {} {} drew her hand: {} ({} cards)." \
 				.format(current_player.__class__.__name__, 
 						self.get_players().index(current_player), 
 						hand_strings, 
-						len(current_player.hand))	 		
+						len(current_player.get_hand()))	 		
 		if self.player_with_priority == self.current_turn_player():
 			self.player_with_priority = self.not_current_turn_player()
 		else:	
@@ -507,8 +524,8 @@ class Game():
 
 
 		current_player = self.get_players()[moving_player]
-		if self.phase != "draw":
-			current_player.hand.append(new_card)
+		if True or self.phase != "draw":
+			current_player.get_hand().append(new_card)
 			self.new_card_id += 1
 
 		if self.phase == "draw":
@@ -601,6 +618,7 @@ class Game():
 				opponent.hit_points -= attacker.total_damage()
 				total_attack += attacker.total_damage()
 
+		self.damage_to_players[self.players.index(opponent)] += total_attack
 		if self.print_moves:
 			if total_attack > 0:
 				print "> {} {} attacked for {}, {} killed." \
@@ -650,6 +668,7 @@ class Game():
 				if card.owner == self.player_with_priority:
 					card.adjust_for_untap_phase()
 
+		self.damage_to_players = [0, 0]
 		self.phase = "draw"
 		if self.print_moves:
 			print "End of Turn {}".format(self.current_turn)
@@ -675,6 +694,19 @@ class Game():
 
 		possible_blocks = itertools.product(self.attackers, blocker_combos)
 		for block in possible_blocks:
-			possible_moves.append(('assign_blockers', block, 0))
+			if self.block_is_legal(block):
+				possible_moves.append(('assign_blockers', block, 0))
 
 		return possible_moves
+
+	def block_is_legal(self, block):
+		attacker = self.creature_with_id(block[0])
+		blockers = [self.creature_with_id(x) for x in block[1]]
+
+		for blocker in blockers:
+			if not attacker.can_be_blocked_by(blocker):
+				return False
+		return True
+
+	def opponent_was_dealt_damage(self):
+		return self.damage_to_players[self.not_current_turn_player()] > 0

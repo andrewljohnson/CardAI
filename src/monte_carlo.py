@@ -24,7 +24,7 @@ class MonteCarloBot(Bot):
 				move_index += 1
 
 		move = legal_plays[top_score_index]
-		game.do_move(move)
+		game.next_state(None, move, game=game)
 		
 	def calc_win_rate(self, game, move_index, iterations):
 		""" Returns a percentage times the move won. """

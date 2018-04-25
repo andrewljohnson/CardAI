@@ -4,7 +4,7 @@ import datetime
 from bot import Bot
 from math import log, sqrt
 from random import choice
-
+from copy import deepcopy
 
 class MonteCarloSearchTreeBot(Bot):
 	def __init__(self, hit_points=0, max_moves=30, simulation_time=10, C=1.4):
@@ -30,6 +30,8 @@ class MonteCarloSearchTreeBot(Bot):
 		# statistics about previously simulated game states
 		self.wins = {}
 		self.plays = {}
+		self.cached_games = {}
+		self.cached_end_states = {}
 
 		# enable to log simulation results
 		self.show_simulation_results = True
@@ -37,7 +39,7 @@ class MonteCarloSearchTreeBot(Bot):
 	def play_move(self, game):
 		"""Play a move in game."""
 		move = self.get_play()
-		game.do_move(move)
+		game.next_state(None, move, game=game)
 		# print game.state_repr()
 
 	def get_play(self):
@@ -47,7 +49,14 @@ class MonteCarloSearchTreeBot(Bot):
 			after simulating possible plays and updating plays and wins stats.
 		"""
 		state = self.game.states[-1]
-		legal = self.game.legal_plays(self.game.states[:])
+
+		cached_game = None
+		if (state[1], state) in self.cached_games:
+			cached_game = self.cached_games[(state[1], state)]		
+		if cached_game:
+			legal = cached_game.cached_legal_moves
+		else:
+			legal = self.game.legal_plays(self.game.states[:])
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
@@ -60,8 +69,11 @@ class MonteCarloSearchTreeBot(Bot):
 		while datetime.datetime.utcnow() - begin < self.calculation_time:
 			self.run_simulation()
 			games += 1
-
-		moves_states = [(p, self.game.next_state(state, p)) for p in legal]
+		
+		moves_states = []
+		for p in legal:
+			game_state, game = self.game.next_state(state, p)
+			moves_states.append((p, game_state, game))
 
 		player = self.game.acting_player(state)
 
@@ -70,7 +82,7 @@ class MonteCarloSearchTreeBot(Bot):
 			(self.wins.get((player, S), 0) * 1.0 /
 			 self.plays.get((player, S), 1),
 			 p)
-			for p, S in moves_states
+			for p, S, _ in moves_states
 		)
 
 		if self.show_simulation_results:
@@ -80,7 +92,7 @@ class MonteCarloSearchTreeBot(Bot):
 					self.plays.get((player, S), 1),
 					self.wins.get((player, S), 0),
 					self.plays.get((player, S), 0), p)
-				 for p, S in moves_states),
+				 for p, S, _ in moves_states),
 				reverse=True
 			):
 				print "{3}: {0:.2f}% ({1} / {2})".format(*x)
@@ -90,7 +102,7 @@ class MonteCarloSearchTreeBot(Bot):
 	def run_simulation(self):
 		# A bit of an optimization here, so we have a local
 		# variable lookup instead of an attribute access each loop.
-		plays, wins = self.plays, self.wins
+		plays, wins, cached_games, cached_end_states = self.plays, self.wins, self.cached_games, self.cached_end_states
 
 		visited_states = set()
 		states_copy = self.game.states[:]
@@ -101,23 +113,41 @@ class MonteCarloSearchTreeBot(Bot):
 		for t in xrange(1, self.max_moves + 1):
 			curr_play_num = state[1]
 
-			legal = self.game.legal_plays(states_copy)
+			cached_game = None
+			if (curr_play_num, state) in cached_games:
+				cached_game = cached_games[(curr_play_num, state)]
+			if cached_game:
+				legal = cached_game.cached_legal_moves
+			else:
+				legal = self.game.legal_plays(states_copy)
+				cached_games[(curr_play_num, state)] = self.game.game_for_state(self.game.state_repr(), lazy=True)
+				cached_games[(curr_play_num, state)].cached_legal_moves = legal[:]
+				
 			# print "chose from {}".format(legal)
-			moves_states = [(p, self.game.next_state(state, p)) for p in legal]
-			if all(plays.get((player, S)) for p, S in moves_states):
+			moves_states = []
+			for p in legal:
+				if (p, state) in cached_end_states:
+					game_state = cached_end_states[(p, state)]
+					_, game = self.game.next_state(state, p, repr_state=False)
+				else: 
+					game_state, game = self.game.next_state(state, p)
+				moves_states.append((p, game_state, game))
+				cached_end_states[(p, state)] = game_state
+			if all(plays.get((player, S)) for p, S, _ in moves_states):
 				# If we have stats on all of the legal moves here, use them.
 				log_total = log(
-					sum(plays[(player, S)] for p, S in moves_states))
+					sum(plays[(player, S)] for p, S, _ in moves_states))
 				value, move, state = max(
 					((wins[(player, S)] / plays[(player, S)]) +
 					 self.C * sqrt(log_total / plays[(player, S)]), p, S)
-					for p, S in moves_states
+					for p, S, _ in moves_states
 				)
 			else:
 				# Otherwise, just make an arbitrary decision.
-				move, state = choice(moves_states)
+				move, state, game = choice(moves_states)
 
 			states_copy.append(state)
+
 
 			# print "moved {} to sim state {}".format(move, state)
 
