@@ -65,6 +65,8 @@ class Card(object):
 			return QuirionRanger(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "VinesOfVastwood":
 			return VinesOfVastwood(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "SilhanaLedgewalker":
+			return SilhanaLedgewalker(state[1], state[2], tapped=state[3], turn_played=state[4])
 
 
 	def state_repr(self):
@@ -228,6 +230,10 @@ class VinesOfVastwood(Card):
 				green_count += count
 
 		for c in game.get_creatures():
+			if not c.targettable:
+				continue
+			if c.hexproof and c.owner != game.player_with_priority:
+				continue
 			if green_count > 0:
 				possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, ('G'), c.id))
 			if green_count > 1:
@@ -278,6 +284,8 @@ class Fireball(Card):
 			for mana in range(2, total_mana+1):
 				possible_moves.append(('card-fireball', card_index, ('R', mana-1), None))
 			for c in game.get_creatures():
+				if c.hexproof and c.owner != game.player_with_priority:
+					continue
 				if c.targettable and c.temp_targettable:
 					for mana in range(2, total_mana+1):
 						possible_moves.append(('card-fireball-creature', card_index, ('R', mana-1), c.id))
@@ -331,6 +339,8 @@ class Creature(Card):
 		self.activated_ability_type = 'instant'
 		self.strength_counters = 0
 		self.hit_point_counters = 0
+		self.flying = False
+		self.hexproof = False
 
 	@staticmethod
 	def creature_for_state(state):
@@ -356,6 +366,8 @@ class Creature(Card):
 			c = NestInvader(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif classname == "EldraziSpawnToken":
 			c = EldraziSpawnToken(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif classname == "SilhanaLedgewalker":
+			c = SilhanaLedgewalker(state[1], state[2], tapped=state[3], turn_played=state[4])
 		
 		c.targettable = state[5]
 		c.temp_strength = state[6]
@@ -365,6 +377,8 @@ class Creature(Card):
 		c.activated_ability_type = state[10]
 		c.strength_counters = state[11]
 		c.hit_point_counters = state[12]
+		c.flying = state[13]
+		c.hexproof = state[14]
 
 		return c
 
@@ -383,6 +397,8 @@ class Creature(Card):
 				self.activated_ability_type,
 				self.strength_counters,
 				self.hit_point_counters,
+				self.flying,
+				self.hexproof,
 		)
 
 	def initial_strength():
@@ -762,3 +778,28 @@ class EldraziSpawnToken(Creature):
 
 	def creature_types(self):
 		return ['Eldrazi', 'Token']
+
+
+class SilhanaLedgewalker(GreenCreature):
+	"""
+		Hexproof (This creature can't be the target of spells or abilities your opponents control.)
+		Silhana Ledgewalker can't be blocked except by creatures with flying.
+	"""
+	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
+		super(GreenCreature, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
+		self.hexproof = True
+
+	def total_mana_cost(self):
+		return ('G', 1)
+
+	def initial_strength(self):
+		return 1
+
+	def initial_hit_points(self):
+		return 1
+
+	def can_be_blocked_by(self, creature):
+		return creature.flying
+
+	def creature_types(self):
+		return ['Elf', 'Rogue']

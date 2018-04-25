@@ -4,7 +4,8 @@ import collections
 import itertools
 from bot import Bot
 from card import Card, Creature, Land
-from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, SkarrganPitSkulk, VinesOfVastwood
+from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, SkarrganPitSkulk, \
+	SilhanaLedgewalker, VinesOfVastwood
 from random import choice
 
 
@@ -493,9 +494,9 @@ class Game():
 		 	self.draw_card(moving_player, card=Forest);
 		 	self.draw_card(moving_player, card=Forest);
 		 	self.draw_card(moving_player, card=Forest);
-		 	self.draw_card(moving_player, card=NestInvader);
-		 	self.draw_card(moving_player, card=NestInvader);
-		 	self.draw_card(moving_player, card=NestInvader);
+		 	self.draw_card(moving_player, card=SilhanaLedgewalker);
+		 	self.draw_card(moving_player, card=SilhanaLedgewalker);
+		 	self.draw_card(moving_player, card=SilhanaLedgewalker);
 		if self.print_moves:
 			current_player = self.get_players()[moving_player]
 			hand_strings = [type(c).__name__ for c in current_player.get_hand()]
