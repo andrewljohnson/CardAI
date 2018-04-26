@@ -4,10 +4,11 @@ import datetime
 from bot import Bot
 from math import log, sqrt
 from random import choice
-from copy import deepcopy
+import copy
+
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, hit_points=0, max_moves=50, simulation_time=4, C=1.4):
+	def __init__(self, hit_points=0, max_moves=200, simulation_time=1, C=1.4):
 		"""
 			Adjust simulation_time and max_moves to taste.
 
@@ -40,7 +41,7 @@ class MonteCarloSearchTreeBot(Bot):
 		"""Play a move in game."""
 		move = self.get_play()
 		game.next_state(None, move, game=game)
-		# print game.state_repr()
+		#print game.state_repr(use_pickle=False)
 
 	def get_play(self):
 		"""
@@ -51,8 +52,8 @@ class MonteCarloSearchTreeBot(Bot):
 		state = self.game.states[-1]
 
 		cached_game = None
-		if (state[1], state) in self.cached_games:
-			cached_game = self.cached_games[(state[1], state)]		
+		if (self.game.player_with_priority, state) in self.cached_games:
+			cached_game = self.cached_games[(self.game.player_with_priority, state)]		
 		if cached_game:
 			legal = cached_game.cached_legal_moves
 		else:
@@ -75,7 +76,7 @@ class MonteCarloSearchTreeBot(Bot):
 			game_state, game = self.game.next_state(state, p)
 			moves_states.append((p, game_state, game))
 
-		player = self.game.acting_player(state)
+		player = self.game.player_with_priority
 
 		# Pick the move with the highest percentage of wins.
 		percent_wins, move = max(
@@ -107,11 +108,11 @@ class MonteCarloSearchTreeBot(Bot):
 		visited_states = set()
 		states_copy = self.game.states[:]
 		state = states_copy[-1]
-		player = self.game.acting_player(state)
+		player = self.game.player_with_priority
 
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
-			curr_play_num = state[1]
+			curr_play_num = self.game.player_with_priority
 
 			cached_game = None
 			if (curr_play_num, state) in cached_games:
@@ -120,7 +121,7 @@ class MonteCarloSearchTreeBot(Bot):
 				legal = cached_game.cached_legal_moves
 			else:
 				legal = self.game.legal_plays(states_copy)
-				cached_games[(curr_play_num, state)] = self.game.game_for_state(self.game.state_repr(), lazy=True)
+				cached_games[(curr_play_num, state)] = copy.copy(self.game)
 				cached_games[(curr_play_num, state)].cached_legal_moves = legal[:]
 				
 			# print "chose from {}".format(legal)
@@ -128,9 +129,9 @@ class MonteCarloSearchTreeBot(Bot):
 			for p in legal:
 				if (p, state) in cached_end_states:
 					game_state = cached_end_states[(p, state)]
-					_, game = self.game.next_state(state, p, repr_state=False)
+					_, game = self.game.next_state(state, p, game=cached_game, repr_state=False)
 				else: 
-					game_state, game = self.game.next_state(state, p)
+					game_state, game = self.game.next_state(state, p, game=cached_game)
 				moves_states.append((p, game_state, game))
 				cached_end_states[(p, state)] = game_state
 			if all(plays.get((player, S)) for p, S, _ in moves_states):
@@ -159,7 +160,10 @@ class MonteCarloSearchTreeBot(Bot):
 				wins[(player, state)] = 0
 
 			visited_states.add((player, state))
-			player = self.game.acting_player(state)
+			if cached_game:
+				cached_game.player_with_priority
+			else:
+				player = self.game.acting_player(state)
 			winner = self.game.winner(states_copy)
 			if winner >= 0:
 				break

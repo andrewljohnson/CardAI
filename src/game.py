@@ -1,6 +1,7 @@
 """Game encapsulates the rules and state of a fantasy card game, and interface with bots."""
 
 import collections
+import pickle
 import itertools
 from bot import Bot
 from card import Card, Creature, Land
@@ -61,8 +62,11 @@ class Game():
 		self.print_moves = False 
 
 
-	def state_repr(self):
+	def state_repr(self, use_pickle=True):
 		"""A hashable representation of the game state."""
+		if use_pickle:
+			return pickle.dumps(self)
+
 		players = self.players if self.lazy_players else [p.state_repr() for p in self.get_players()]
 		creatures = self.creatures if self.lazy_creatures else [c.state_repr() for c in self.get_creatures()]
 		lands = self.lands if self.lazy_lands else [l.state_repr() for l in self.get_lands()]
@@ -81,6 +85,9 @@ class Game():
 
 	def game_for_state(self, state, lazy=False):
 		"""Return a Game for a state tuple."""
+
+		return pickle.loads(state)
+
 		clone_game = Game()
 		clone_game.current_turn = state[0]
 		clone_game.player_with_priority = state[1]
@@ -241,7 +248,7 @@ class Game():
 
 	def acting_player(self, state):
 		"""Return the player_number of the player due to make move in state."""
-		return state[1]
+		return self.game_for_state(state).player_with_priority
 
 	def next_state(self, state, move, game=None, repr_state=True):
 		"""Return a new state after applying the move to state."""
@@ -427,8 +434,6 @@ class Game():
 			possible_moves.add(('resolve_combat', game.player_with_priority, 0),)
 			return list(possible_moves)
 
-		if not self.print_moves:
-			print "possible moves before add pass is {}".format(possible_moves)
 		possible_moves.add(('pass_the_turn', game.player_with_priority, 0))
 		return list(possible_moves)
 
@@ -493,10 +498,10 @@ class Game():
 		 	#	self.draw_card(moving_player);
 		 	self.draw_card(moving_player, card=Forest);
 		 	self.draw_card(moving_player, card=Forest);
-		 	self.draw_card(moving_player, card=Forest);
+		 	#self.draw_card(moving_player, card=Forest);
 		 	self.draw_card(moving_player, card=SilhanaLedgewalker);
-		 	self.draw_card(moving_player, card=SilhanaLedgewalker);
-		 	self.draw_card(moving_player, card=SilhanaLedgewalker);
+		 	#self.draw_card(moving_player, card=SilhanaLedgewalker);
+		 	#self.draw_card(moving_player, card=SilhanaLedgewalker);
 		if self.print_moves:
 			current_player = self.get_players()[moving_player]
 			hand_strings = [type(c).__name__ for c in current_player.get_hand()]
