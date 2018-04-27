@@ -33,7 +33,6 @@ class Card(object):
 			#VinesOfVastwood,
 			#Rancor,
 			#ElephantGuide,
-
 			#HungerOfTheHowlpack,
 		]
 
@@ -64,7 +63,7 @@ class Card(object):
 		elif state[0] == "Rancor":
 			card = Rancor(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "ElephantGuide":
-			card = Rancor(state[1], state[2], tapped=state[3], turn_played=state[4])
+			card = ElephantGuide(state[1], state[2], tapped=state[3], turn_played=state[4])
 
 		return card
 
@@ -283,6 +282,63 @@ class VinesOfVastwood(Card):
 						game.get_players().index(caster), 
 						creature.__class__.__name__,
 						creature.total_damage())
+
+
+class HungerOfTheHowlpack(Card):
+	"""
+		Put a +1/+1 counter on target creature.
+		Morbid — Put three +1/+1 counters on that creature instead if a creature died this turn.
+	"""
+
+	def __init__(self, owner, card_id, tapped=False, turn_played=None):
+		super(HungerOfTheHowlpack, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
+		self.card_type = 'instant'
+
+	def possible_moves(self, game):
+		"""Returns possible VinesOfVastwood targets."""
+		available_mana = game.available_mana()
+		possible_moves = []
+		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
+		
+		green_count = 0
+		for color, count in available_mana.iteritems():
+			if 'G' in color:
+				green_count += count
+				break
+
+		for c in game.get_creatures():
+			if not c.targettable:
+				continue
+			if c.hexproof and c.owner != game.player_with_priority:
+				continue
+			if green_count > 0:
+				possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, ('G'), c.id))
+
+		return possible_moves
+
+	def play(self, game, mana_to_use, target_creature_id):
+		"""Pump a creature based on how much mana is used."""
+		creature = game.creature_with_id(target_creature_id)
+		morbid = False
+		if creature:
+			pass
+		else:
+			creature.strength_counters += 1
+			creature.hit_point_counters += 1
+		if game.print_moves:
+			format_str = None
+			if morbid:
+				format_str = "> {} {} played {} on {}, with morbid, total stats now {}/{}.."
+			else:
+				format_str = "> {} {} played {} on {}, total stats now {}/{}."
+			print format_str.format( 
+				caster.__class__.__name__, 
+				self.owner, 
+				self.__class__.__name__,
+				creature.__class__.__name__,
+				creature.total_damage(),
+				creature.total_hit_points(),
+			)
 
 class Fireball(Card):
 	"""A card that deal X damage to anything."""
