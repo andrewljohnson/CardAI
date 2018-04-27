@@ -5,7 +5,7 @@ import itertools
 from bot import Bot
 from card import Card, Creature, Land
 from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, SkarrganPitSkulk, \
-	SilhanaLedgewalker, VaultSkirge, VinesOfVastwood, Rancor
+	SilhanaLedgewalker, VaultSkirge, VinesOfVastwood, Rancor, ElephantGuide
 from random import choice
 
 

@@ -32,9 +32,9 @@ class Card(object):
 			#VaultSkirge,
 			#VinesOfVastwood,
 			#Rancor,
+			#ElephantGuide,
 
 			#HungerOfTheHowlpack,
-			#ElephantGuide,
 		]
 
 	@staticmethod
@@ -62,6 +62,8 @@ class Card(object):
 		elif state[0] == "VaultSkirge":
 			card = VaultSkirge(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "Rancor":
+			card = Rancor(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "ElephantGuide":
 			card = Rancor(state[1], state[2], tapped=state[3], turn_played=state[4])
 
 		return card
@@ -447,7 +449,10 @@ class Creature(Card):
 		return self.strength + self.temp_strength + self.strength_counters + enchantment_damage
 
 	def total_hit_points(self):
-		return self.hit_points + self.temp_hit_points + self.hit_point_counters
+		enchantment_hit_points = 0
+		for e in self.enchantments:
+			enchantment_hit_points += e.defense_bonus()
+		return self.hit_points + self.temp_hit_points + self.hit_point_counters + enchantment_hit_points
 
 	def can_attack(self, game):
 		"""Returns False if the creature was summoned this turn."""
@@ -886,6 +891,25 @@ class CreatureEnchantment(Card):
 	def defense_bonus(self):
 		return 0
 
+	def possible_moves(self, game):
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
+		available_mana = game.available_mana()
+		has_green = False
+		total_mana = 0
+		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
+		possible_moves = []
+		for color, count in available_mana.iteritems():
+			total_mana += count
+			if type(color) != int and 'G' in color:
+				has_green = True
+		if has_green and total_mana >= self.mana_cost():
+			for c in game.get_creatures():
+				if c.hexproof and c.owner != game.player_with_priority:
+					continue
+				if c.targettable and c.temp_targettable:
+					possible_moves.append(('card-rancor', card_index, ('G'), c.id))
+		return possible_moves
+
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Summon the bear for the player_with_priority."""
 		summoner = game.get_players()[game.player_with_priority]
@@ -914,10 +938,11 @@ class Rancor(CreatureEnchantment):
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
 		super(Rancor, self).__init__(owner, card_id, tapped=False, turn_played=turn_played)
 
+	def total_mana_cost(self):
+		return ('G')
+
 	def attack_bonus(self):
 		return 2
-
-
 
 	def possible_moves(self, game):
 		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
@@ -937,3 +962,22 @@ class Rancor(CreatureEnchantment):
 				if c.targettable and c.temp_targettable:
 					possible_moves.append(('card-rancor', card_index, ('G'), c.id))
 		return possible_moves
+
+
+class ElephantGuide(CreatureEnchantment):
+	"""
+		Enchanted creature gets +3/+3.
+		When enchanted creature dies, create a 3/3 green Elephant creature token.
+	"""
+
+	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
+		super(ElephantGuide, self).__init__(owner, card_id, tapped=False, turn_played=turn_played)
+
+	def total_mana_cost(self):
+		return ('G', 2)
+
+	def attack_bonus(self):
+		return 3
+
+	def defense_bonus(self):
+		return 3
