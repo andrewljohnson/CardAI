@@ -5,7 +5,7 @@ import itertools
 from bot import Bot
 from card import Card, Creature, Land
 from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, SkarrganPitSkulk, \
-	SilhanaLedgewalker, VaultSkirge, VinesOfVastwood
+	SilhanaLedgewalker, VaultSkirge, VinesOfVastwood, Rancor
 from random import choice
 
 
@@ -397,6 +397,7 @@ class Game():
 		card_index = move[1]
 		card = self.get_creatures()[card_index]
 		card.activate_ability(self, mana_to_use, target_creature_id, target_land_id)
+		#TODO should this be diff function than in play_card_move?
 		for creature in self.get_creatures():
 			creature.react_to_spell(card)
 		for land in self.get_lands():
@@ -519,9 +520,8 @@ class Game():
 		 	#	self.draw_card(moving_player);
 		 	self.draw_card(moving_player, card=Forest);
 		 	self.draw_card(moving_player, card=Forest);
-		 	self.draw_card(moving_player, card=Forest);
-		 	self.draw_card(moving_player, card=VaultSkirge);
-		 	self.draw_card(moving_player, card=VaultSkirge);
+		 	self.draw_card(moving_player, card=Rancor);
+		 	self.draw_card(moving_player, card=Rancor);
 		 	self.draw_card(moving_player, card=VaultSkirge);
 		if self.print_moves:
 			current_player = self.get_players()[moving_player]

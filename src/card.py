@@ -31,9 +31,9 @@ class Card(object):
 			#SkarrganPitSkulk,
 			#VaultSkirge,
 			#VinesOfVastwood,
+			#Rancor,
 
 			#HungerOfTheHowlpack,
-			#Rancor,
 			#ElephantGuide,
 		]
 
@@ -42,25 +42,29 @@ class Card(object):
 		# eval is too slow
 		# return eval("{}".format(state[0]))(state[1], state[2], tapped=state[3], turn_played=state[4])
 
+		card = None
 		if state[0] == "Forest":
-			return Forest(state[1], state[2], tapped=state[3], turn_played=state[4])
+			card = Forest(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "BurningTreeEmissary":
-			return BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
+			card = BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "SkarrganPitSkulk":
-			return SkarrganPitSkulk(state[1], state[2], tapped=state[3], turn_played=state[4])
+			card = SkarrganPitSkulk(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "NestInvader":
-			return NestInvader(state[1], state[2], tapped=state[3], turn_played=state[4])
+			card = NestInvader(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "EldraziSpawnToken":
-			return EldraziSpawnToken(state[1], state[2], tapped=state[3], turn_played=state[4])
+			card = EldraziSpawnToken(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "QuirionRanger":
-			return QuirionRanger(state[1], state[2], tapped=state[3], turn_played=state[4])
+			card = QuirionRanger(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "VinesOfVastwood":
-			return VinesOfVastwood(state[1], state[2], tapped=state[3], turn_played=state[4])
+			card = VinesOfVastwood(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "SilhanaLedgewalker":
-			return SilhanaLedgewalker(state[1], state[2], tapped=state[3], turn_played=state[4])
+			card = SilhanaLedgewalker(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "VaultSkirge":
-			return VaultSkirge(state[1], state[2], tapped=state[3], turn_played=state[4])
+			card = VaultSkirge(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "Rancor":
+			card = Rancor(state[1], state[2], tapped=state[3], turn_played=state[4])
 
+		return card
 
 	def state_repr(self):
 		"""Return a hashable tuple representing the Card."""
@@ -83,6 +87,27 @@ class Card(object):
 
 	def total_mana_cost(self):
 		return ()
+
+	def mana_cost(self):
+		colorless = 0
+		for mana in self.total_mana_cost():
+			if isinstance(mana, int):
+				colorless += mana
+			else:
+				colorless += 1
+		return colorless
+
+	def possible_moves(self, game):
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
+		available_mana = game.available_mana()
+		total_mana = 0
+		for color, count in available_mana.iteritems():
+			total_mana += count
+		if total_mana >= self.mana_cost():
+			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
+			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
+		return []
+
 
 class Land(Card):
 	"""A card that produces any color mana."""
@@ -335,6 +360,7 @@ class Creature(Card):
 		self.flying = False
 		self.hexproof = False
 		self.lifelink = False
+		self.enchantments = []
 
 	@staticmethod
 	def creature_for_state(state):
@@ -377,6 +403,9 @@ class Creature(Card):
 		c.hexproof = state[14]
 		c.lifelink = state[15]
 
+		for enchantment in state[16]:
+			c.enchantments.append(Card.card_for_state(enchantment))
+
 		return c
 
 	def state_repr(self):
@@ -397,6 +426,7 @@ class Creature(Card):
 				self.flying,
 				self.hexproof,
 				self.lifelink,
+				tuple([e.state_repr() for e in self.enchantments]),
 		)
 
 	def initial_strength():
@@ -411,19 +441,13 @@ class Creature(Card):
 		self.temp_targettable = True
 
 	def total_damage(self):
-		return self.strength + self.temp_strength + self.strength_counters
+		enchantment_damage = 0
+		for e in self.enchantments:
+			enchantment_damage += e.attack_bonus()
+		return self.strength + self.temp_strength + self.strength_counters + enchantment_damage
 
 	def total_hit_points(self):
 		return self.hit_points + self.temp_hit_points + self.hit_point_counters
-
-	def mana_cost(self):
-		colorless = 0
-		for mana in self.total_mana_cost():
-			if isinstance(mana, int):
-				colorless += mana
-			else:
-				colorless += 1
-		return colorless
 
 	def can_attack(self, game):
 		"""Returns False if the creature was summoned this turn."""
@@ -445,17 +469,6 @@ class Creature(Card):
 					self.total_hit_points(), 
 					self.__class__.__name__
 				)
-
-	def possible_moves(self, game):
-		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
-		available_mana = game.available_mana()
-		total_mana = 0
-		for color, count in available_mana.iteritems():
-			total_mana += count
-		if total_mana >= self.mana_cost():
-			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
-			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
-		return []
 
 	def possible_ability_moves(self, game):
 		return []
@@ -858,4 +871,69 @@ class VaultSkirge(GreenCreature):
 		if casting_player.hit_points >= 2 and total_mana >= 1:
 			card_index = casting_player.get_hand().index(self)
 			possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, (1, 'L2'), None))
+		return possible_moves
+
+
+class CreatureEnchantment(Card):
+	"""A fantasy enchantment card instance."""
+
+	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
+		super(CreatureEnchantment, self).__init__(owner, card_id, tapped=False, turn_played=turn_played)
+
+	def attack_bonus(self):
+		return 0
+
+	def defense_bonus(self):
+		return 0
+
+	def play(self, game, mana_to_use, target_creature_id):
+		"""Summon the bear for the player_with_priority."""
+		summoner = game.get_players()[game.player_with_priority]
+		summoner.get_hand().remove(self)
+		self.turn_played = game.current_turn
+		target_creature = game.creature_with_id(target_creature_id)
+		target_creature.enchantments.append(self)
+		if game.print_moves:
+			player = game.get_players()[game.player_with_priority]
+			print "> {} {} played a {} on {}." \
+				.format(
+					player.__class__.__name__, 
+					game.players.index(player), 
+					self.__class__.__name__,
+					target_creature.__class__.__name__
+				)
+
+
+class Rancor(CreatureEnchantment):
+	"""
+		Enchanted creature gets +2/+0 and has trample.
+		When Rancor is put into a graveyard from the battlefield, 
+		return Rancor to its owner's hand.
+	"""
+
+	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
+		super(Rancor, self).__init__(owner, card_id, tapped=False, turn_played=turn_played)
+
+	def attack_bonus(self):
+		return 2
+
+
+
+	def possible_moves(self, game):
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
+		available_mana = game.available_mana()
+		has_green = False
+		total_mana = 0
+		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
+		possible_moves = []
+		for color, count in available_mana.iteritems():
+			total_mana += count
+			if type(color) != int and 'G' in color:
+				has_green = True
+		if has_green and total_mana >= self.mana_cost():
+			for c in game.get_creatures():
+				if c.hexproof and c.owner != game.player_with_priority:
+					continue
+				if c.targettable and c.temp_targettable:
+					possible_moves.append(('card-rancor', card_index, ('G'), c.id))
 		return possible_moves
