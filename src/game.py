@@ -5,7 +5,7 @@ import itertools
 from bot import Bot
 from card import Card, Creature, Land
 from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, SkarrganPitSkulk, \
-	SilhanaLedgewalker, VinesOfVastwood
+	SilhanaLedgewalker, VaultSkirge, VinesOfVastwood
 from random import choice
 
 
@@ -286,13 +286,25 @@ class Game():
 
 	def tap_lands_for_mana(self, mana_to_tap):
 		"""Tap land_to_tap lands to pay for a spell or effect."""
-
 		colored = []
+		life = []
 		colorless = 0
+
+		caster = self.get_players()[self.player_with_priority]
 
 		for mana in mana_to_tap:
 			if isinstance(mana, int):
 				colorless = mana
+			elif mana.startswith("L"):
+				caster.hit_points -= int(mana[1:])
+				if self.print_moves:
+					print "> {} {} lost {} life from casting a Phyrexian, now at {}." \
+						.format(
+							caster.__class__.__name__, 
+							self.player_with_priority, 
+							int(mana[1:]),
+							caster.hit_points
+						)
 			else:
 				colored.append(mana)
 
@@ -300,14 +312,14 @@ class Game():
 			mana = colored[0]
 			temp_index_to_remove = 0
 			found_temp = False
-			for temp_mana in self.get_players()[self.player_with_priority].temp_mana:
+			for temp_mana in caster.temp_mana:
 				if type(temp_mana) == str and temp_mana in mana:
 					colored.pop(0)
 					found_temp = True
 					break
 				temp_index_to_remove += 1
 			if found_temp:
-				del self.get_players()[self.player_with_priority].temp_mana[temp_index_to_remove]
+				del caster.temp_mana[temp_index_to_remove]
 				continue
 
 			for l in self.get_lands():
@@ -316,22 +328,36 @@ class Game():
 						l.tapped = True
 						colored.pop(0)
 						break
+
 		while colorless > 0:
 			temp_index_to_remove = 0
 			found_temp = False
-			for temp_mana in self.get_players()[self.player_with_priority].temp_mana:
+			for temp_mana in caster.temp_mana:
 				if type(temp_mana) == int:
 					colorless -= temp_mana
 					found_temp = True
 					break
 				temp_index_to_remove += 1
 			if found_temp:
-				del self.get_players()[self.player_with_priority].temp_mana[temp_index_to_remove]
+				del caster.temp_mana[temp_index_to_remove]
 				continue
+
+			temp_index_to_remove = 0
+			for temp_mana in caster.temp_mana:
+				if type(temp_mana) == str:
+					colorless -= 1
+					found_temp = True
+					break
+				temp_index_to_remove += 1
+			if found_temp:
+				del caster.temp_mana[temp_index_to_remove]
+				continue
+
 			for l in self.get_lands():
 				if l.owner == self.player_with_priority and not l.tapped:
 					l.tapped = True
 					colorless -= 1
+
 
 	def available_mana(self):
 		"""Returns a map of color to amount of mana from player_with_priority's untapped lands."""
@@ -494,9 +520,9 @@ class Game():
 		 	self.draw_card(moving_player, card=Forest);
 		 	self.draw_card(moving_player, card=Forest);
 		 	self.draw_card(moving_player, card=Forest);
-		 	self.draw_card(moving_player, card=SilhanaLedgewalker);
-		 	self.draw_card(moving_player, card=SilhanaLedgewalker);
-		 	self.draw_card(moving_player, card=SilhanaLedgewalker);
+		 	self.draw_card(moving_player, card=VaultSkirge);
+		 	self.draw_card(moving_player, card=VaultSkirge);
+		 	self.draw_card(moving_player, card=VaultSkirge);
 		if self.print_moves:
 			current_player = self.get_players()[moving_player]
 			hand_strings = [type(c).__name__ for c in current_player.get_hand()]
@@ -628,6 +654,7 @@ class Game():
 
 			if not is_blocked:
 				opponent.hit_points -= attacker.total_damage()
+				attacker.did_deal_damage(self)
 				total_attack += attacker.total_damage()
 
 		self.damage_to_players[self.players.index(opponent)] += total_attack

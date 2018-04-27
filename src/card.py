@@ -22,28 +22,19 @@ class Card(object):
 		return [
 			#Mountain,
 			#Fireball,
-			#Forest,
-			#Forest,
-			#Forest,
 			Forest,
 			#BurningTreeEmissary,
-			#BurningTreeEmissary,
-			#BurningTreeEmissary,
-			#BurningTreeEmissary,
-			#NettleSentinel,
-			#NettleSentinel,
-			#NettleSentinel,
+			#NestInvader,
 			#NettleSentinel,
 			#QuirionRanger,
-			#QuirionRanger,
-			#QuirionRanger,
-			#QuirionRanger,
-			#QuirionRanger,
+			#SilhanaLedgewalker,
 			#SkarrganPitSkulk,
+			#VaultSkirge,
 			#VinesOfVastwood,
-			#VinesOfVastwood,
-			#VinesOfVastwood,
-			#VinesOfVastwood,
+
+			#HungerOfTheHowlpack,
+			#Rancor,
+			#ElephantGuide,
 		]
 
 	@staticmethod
@@ -67,6 +58,8 @@ class Card(object):
 			return VinesOfVastwood(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "SilhanaLedgewalker":
 			return SilhanaLedgewalker(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "VaultSkirge":
+			return VaultSkirge(state[1], state[2], tapped=state[3], turn_played=state[4])
 
 
 	def state_repr(self):
@@ -341,6 +334,7 @@ class Creature(Card):
 		self.hit_point_counters = 0
 		self.flying = False
 		self.hexproof = False
+		self.lifelink = False
 
 	@staticmethod
 	def creature_for_state(state):
@@ -368,6 +362,8 @@ class Creature(Card):
 			c = EldraziSpawnToken(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif classname == "SilhanaLedgewalker":
 			c = SilhanaLedgewalker(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif classname == "VaultSkirge":
+			c = VaultSkirge(state[1], state[2], tapped=state[3], turn_played=state[4])
 		
 		c.targettable = state[5]
 		c.temp_strength = state[6]
@@ -379,6 +375,7 @@ class Creature(Card):
 		c.hit_point_counters = state[12]
 		c.flying = state[13]
 		c.hexproof = state[14]
+		c.lifelink = state[15]
 
 		return c
 
@@ -399,6 +396,7 @@ class Creature(Card):
 				self.hit_point_counters,
 				self.flying,
 				self.hexproof,
+				self.lifelink,
 		)
 
 	def initial_strength():
@@ -463,6 +461,8 @@ class Creature(Card):
 		return []
 
 	def can_be_blocked_by(self, creature):
+		if self.flying and not creature.flying:
+			return False
 		return True
 
 	def possible_ability_moves(self, game):
@@ -470,6 +470,19 @@ class Creature(Card):
 
 	def creature_types(self):
 		return []
+
+	def did_deal_damage(self, game):
+		if self.lifelink:
+			owner = game.get_players()[self.owner] 
+			owner.hit_points += self.total_damage()
+			if game.print_moves:
+				print "> {} {} gained {} life from {}." \
+					.format(
+						owner.__class__.__name__, 
+						self.owner, 
+						self.total_damage(), 
+						self.__class__.__name__
+					)
 
 
 class GreenCreature(Creature):
@@ -803,3 +816,46 @@ class SilhanaLedgewalker(GreenCreature):
 
 	def creature_types(self):
 		return ['Elf', 'Rogue']
+
+
+class VaultSkirge(GreenCreature):
+	"""
+		(Phyrexian Black can be paid with either Black or 2 life.)
+		Flying
+		Lifelink (Damage dealt by this creature also causes you to gain that much life.)
+	"""
+	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
+		super(GreenCreature, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
+		self.flying = True
+		self.lifelink = True
+
+	def total_mana_cost(self):
+		return ('G', 1)
+
+	def initial_strength(self):
+		return 1
+
+	def initial_hit_points(self):
+		return 1
+
+	def creature_types(self):
+		return ['Artifact', 'Imp']
+
+	def possible_moves(self, game):
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
+		available_mana = game.available_mana()
+		has_green = False
+		total_mana = 0
+		for color, count in available_mana.iteritems():
+			total_mana += count
+			if type(color) != int and 'G' in color:
+				has_green = True
+		possible_moves = []
+		casting_player = game.get_players()[game.player_with_priority]
+		if has_green and total_mana >= self.mana_cost():
+			card_index = casting_player.get_hand().index(self)
+			possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None))
+		if casting_player.hit_points >= 2 and total_mana >= 1:
+			card_index = casting_player.get_hand().index(self)
+			possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, (1, 'L2'), None))
+		return possible_moves
