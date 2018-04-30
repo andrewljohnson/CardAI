@@ -1,8 +1,8 @@
 """The base Bot class, plays randomly."""
 
+import json
 from card import Card
-from random import choice
-
+from random import choice, shuffle
 
 class Bot(object):
 	def __init__(self, hit_points=0, temp_mana=None):
@@ -14,6 +14,19 @@ class Bot(object):
 		if temp_mana:
 			self.temp_mana = list(temp_mana)
 
+		self.shuffled_deck = None
+
+	def deck(self):
+		if self.shuffled_deck:
+			return self.shuffled_deck
+
+		with open('src/stompy.json') as json_data:
+		    d = json.load(json_data)
+		    self.shuffled_deck = d['cards']
+		shuffle(self.shuffled_deck)
+
+		return self.shuffled_deck
+		
 	def play_move(self, game):
 		"""Play a random move in game."""
 		move = choice(list(game.legal_plays(game.states[:])))

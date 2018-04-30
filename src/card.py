@@ -17,69 +17,6 @@ class Card(object):
 		self.card_type = None
 
 	@staticmethod
-	def available_cards():
-		"""All possible cards in the game."""
-		return [
-			#Mountain,
-			#Fireball,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			Forest,
-			BurningTreeEmissary,
-			BurningTreeEmissary,
-			BurningTreeEmissary,
-			BurningTreeEmissary,
-			NestInvader,
-			NestInvader,
-			NestInvader,
-			NestInvader,
-			NettleSentinel,
-			NettleSentinel,
-			NettleSentinel,
-			NettleSentinel,
-			QuirionRanger,
-			QuirionRanger,
-			QuirionRanger,
-			QuirionRanger,
-			SilhanaLedgewalker,
-			SilhanaLedgewalker,
-			SilhanaLedgewalker,
-			SilhanaLedgewalker,
-			SkarrganPitSkulk,
-			SkarrganPitSkulk,
-			SkarrganPitSkulk,
-			SkarrganPitSkulk,
-			VaultSkirge,
-			VaultSkirge,
-			VaultSkirge,
-			VaultSkirge,
-			VinesOfVastwood,
-			VinesOfVastwood,
-			VinesOfVastwood,
-			VinesOfVastwood,
-			Rancor,
-			Rancor,
-			Rancor,
-			Rancor,
-			ElephantGuide,
-			HungerOfTheHowlpack,
-			HungerOfTheHowlpack,
-		]
-
-	@staticmethod
 	def card_for_state(state):
 		# eval is too slow
 		# return eval("{}".format(state[0]))(state[1], state[2], tapped=state[3], turn_played=state[4])
@@ -879,8 +816,6 @@ class EldraziSpawnToken(Creature):
 
 	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
 		if self.id in game.attackers:
-			if type(game.attackers) == tuple: 
-				print game.attackers
 			game.attackers.remove(self.id)
 		if self.id in game.blockers:
 			game.blockers.remove(self.id)

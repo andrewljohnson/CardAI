@@ -4,6 +4,9 @@ import collections
 import itertools
 from bot import Bot
 from card import Card, Creature, Land
+from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, SkarrganPitSkulk, \
+	SilhanaLedgewalker, VaultSkirge, VinesOfVastwood, Rancor, ElephantGuide, HungerOfTheHowlpack, \
+	NettleSentinel
 from random import choice
 
 
@@ -542,17 +545,17 @@ class Game():
 	def draw_card(self, moving_player, card=None):
 		"""Add a card to moving_player's hand."""
 		new_card_class = None
+		current_player = self.get_players()[moving_player]
 		if card:
 			new_card_class = card
 		else:
-			new_card_class = choice(Card.available_cards())
+			new_card_class = eval(current_player.deck().pop())
 		
 		new_card = new_card_class(
 			moving_player, 
 			self.new_card_id
 		)
 
-		current_player = self.get_players()[moving_player]
 		current_player.get_hand().append(new_card)
 		self.new_card_id += 1
 
