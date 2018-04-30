@@ -5,6 +5,7 @@
 
 import argparse
 from src.bot import Bot
+from src.human import Human
 from src.monte_carlo import MonteCarloBot
 from src.monte_carlo_search_tree import MonteCarloSearchTreeBot
 from src.game import Game
@@ -18,7 +19,7 @@ def create_parser():
 		default=[2, 0],
 		nargs=2,
 		type=int,
-		help="list of 2 players - defaults 2 0 - 0: plays randomly, 1: monte carlo, 2: mcst"
+		help="list of 2 players - defaults 2 0 - 0: plays randomly, 1: monte carlo, 2: mcst, 3: Human"
 	)
 	parser.add_argument(
 		"--starting_hit_points",
@@ -35,7 +36,8 @@ def main():
 	bots_types = [
 		'Bot',
 		'MonteCarloBot',
-		'MonteCarloSearchTreeBot'
+		'MonteCarloSearchTreeBot',
+		'Human'
 	]
 	game = Game()
 	for pid in args.players:

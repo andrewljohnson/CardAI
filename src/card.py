@@ -23,17 +23,60 @@ class Card(object):
 			#Mountain,
 			#Fireball,
 			Forest,
-			#BurningTreeEmissary,
-			#NestInvader,
-			#NettleSentinel,
-			#QuirionRanger,
-			#SilhanaLedgewalker,
-			#SkarrganPitSkulk,
-			#VaultSkirge,
-			#VinesOfVastwood,
-			#Rancor,
-			#ElephantGuide,
-			#HungerOfTheHowlpack,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			Forest,
+			BurningTreeEmissary,
+			BurningTreeEmissary,
+			BurningTreeEmissary,
+			BurningTreeEmissary,
+			NestInvader,
+			NestInvader,
+			NestInvader,
+			NestInvader,
+			NettleSentinel,
+			NettleSentinel,
+			NettleSentinel,
+			NettleSentinel,
+			QuirionRanger,
+			QuirionRanger,
+			QuirionRanger,
+			QuirionRanger,
+			SilhanaLedgewalker,
+			SilhanaLedgewalker,
+			SilhanaLedgewalker,
+			SilhanaLedgewalker,
+			SkarrganPitSkulk,
+			SkarrganPitSkulk,
+			SkarrganPitSkulk,
+			SkarrganPitSkulk,
+			VaultSkirge,
+			VaultSkirge,
+			VaultSkirge,
+			VaultSkirge,
+			VinesOfVastwood,
+			VinesOfVastwood,
+			VinesOfVastwood,
+			VinesOfVastwood,
+			Rancor,
+			Rancor,
+			Rancor,
+			Rancor,
+			ElephantGuide,
+			HungerOfTheHowlpack,
+			HungerOfTheHowlpack,
 		]
 
 	@staticmethod
@@ -44,6 +87,8 @@ class Card(object):
 		card = None
 		if state[0] == "Forest":
 			card = Forest(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "NettleSentinel":
+			card = NettleSentinel(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "BurningTreeEmissary":
 			card = BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "SkarrganPitSkulk":
@@ -64,6 +109,8 @@ class Card(object):
 			card = Rancor(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif state[0] == "ElephantGuide":
 			card = ElephantGuide(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif state[0] == "HungerOfTheHowlpack":
+			card = HungerOfTheHowlpack(state[1], state[2], tapped=state[3], turn_played=state[4])
 
 		return card
 
@@ -245,7 +292,7 @@ class VinesOfVastwood(Card):
 		
 		green_count = 0
 		for color, count in available_mana.iteritems():
-			if 'G' in color:
+			if type (color) == str and 'G' in color:
 				green_count += count
 
 		for c in game.get_creatures():
@@ -287,9 +334,8 @@ class VinesOfVastwood(Card):
 class HungerOfTheHowlpack(Card):
 	"""
 		Put a +1/+1 counter on target creature.
-		Morbid — Put three +1/+1 counters on that creature instead if a creature died this turn.
+		Morbid - Put three +1/+1 counters on that creature instead if a creature died this turn.
 	"""
-
 	def __init__(self, owner, card_id, tapped=False, turn_played=None):
 		super(HungerOfTheHowlpack, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
 		self.card_type = 'instant'
@@ -302,9 +348,10 @@ class HungerOfTheHowlpack(Card):
 		
 		green_count = 0
 		for color, count in available_mana.iteritems():
-			if 'G' in color:
-				green_count += count
-				break
+			if type(color) == str:
+				if 'G' in color:
+					green_count += count
+					break
 
 		for c in game.get_creatures():
 			if not c.targettable:
@@ -339,6 +386,7 @@ class HungerOfTheHowlpack(Card):
 				creature.total_damage(),
 				creature.total_hit_points(),
 			)
+
 
 class Fireball(Card):
 	"""A card that deal X damage to anything."""
@@ -448,6 +496,8 @@ class Creature(Card):
 			c = SilhanaLedgewalker(state[1], state[2], tapped=state[3], turn_played=state[4])
 		elif classname == "VaultSkirge":
 			c = VaultSkirge(state[1], state[2], tapped=state[3], turn_played=state[4])
+		elif classname == "NettleSentinel":
+			c = NettleSentinel(state[1], state[2], tapped=state[3], turn_played=state[4])
 		
 		c.targettable = state[5]
 		c.temp_strength = state[6]
@@ -609,7 +659,8 @@ class NettleSentinel(GreenCreature):
 		pass
 
 	def react_to_spell(self, card):
-		if 'G' in card.total_mana_cost():
+		total_mana_cost = card.total_mana_cost()
+		if type(total_mana_cost) == str and 'G' in card.total_mana_cost():
 			self.tapped = False
 
 	def creature_types(self):
@@ -725,8 +776,9 @@ class BurningTreeEmissary(GreenCreature):
 		available_mana = game.available_mana()
 		either_count = 0
 		for color, count in available_mana.iteritems():
-			if 'G' in color or 'R' in color: 
-				either_count += count
+			if type(color) == str:
+				if 'G' in color or 'R' in color: 
+					either_count += count
 		if either_count >= self.mana_cost():
 			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
 			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]

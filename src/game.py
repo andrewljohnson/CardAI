@@ -4,8 +4,6 @@ import collections
 import itertools
 from bot import Bot
 from card import Card, Creature, Land
-from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, SkarrganPitSkulk, \
-	SilhanaLedgewalker, VaultSkirge, VinesOfVastwood, Rancor, ElephantGuide
 from random import choice
 
 
@@ -515,14 +513,8 @@ class Game():
 
 	def initial_draw(self, moving_player):
 		"""Add some cards to each player's hand."""
-	 	if True or moving_player == 0:
-		 	#for i in range(0,7):
-		 	#	self.draw_card(moving_player);
-		 	self.draw_card(moving_player, card=Forest);
-		 	self.draw_card(moving_player, card=Forest);
-		 	self.draw_card(moving_player, card=Rancor);
-		 	self.draw_card(moving_player, card=Rancor);
-		 	self.draw_card(moving_player, card=VaultSkirge);
+	 	for i in range(0,7):
+	 		self.draw_card(moving_player);
 		if self.print_moves:
 			current_player = self.get_players()[moving_player]
 			hand_strings = [type(c).__name__ for c in current_player.get_hand()]
@@ -560,11 +552,9 @@ class Game():
 			self.new_card_id
 		)
 
-
 		current_player = self.get_players()[moving_player]
-		if self.phase != "draw":
-			current_player.get_hand().append(new_card)
-			self.new_card_id += 1
+		current_player.get_hand().append(new_card)
+		self.new_card_id += 1
 
 		if self.phase == "draw":
 			for p in self.get_players():
