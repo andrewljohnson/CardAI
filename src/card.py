@@ -10,46 +10,41 @@ class Card(object):
 		# the player_number of the owner
 		self.owner = owner
 
+		# whether the card is in tapped, only applies to permanents in play
 		self.tapped = tapped
 
+		# what turn number teh card last came into play
 		self.turn_played = turn_played
 
+		# sometimes set to "instant"
 		self.card_type = None
 
 	@staticmethod
+	def class_for_name(name):
+		"""Return a dict mapping card name to class."""	
+		card_classes = [
+			BurningTreeEmissary,
+			EldraziSpawnToken,
+			ElephantGuide,
+			Forest,
+			HungerOfTheHowlpack,
+			NestInvader,
+			NettleSentinel,			
+			QuirionRanger,
+			Rancor,
+			SilhanaLedgewalker,
+			SkarrganPitSkulk,
+			VaultSkirge,
+			VinesOfVastwood,
+		]
+		class_map = {}
+		for c in card_classes:
+			class_map[c.__name__] = c
+		return class_map[name]
+
+	@staticmethod
 	def card_for_state(state):
-		# eval is too slow
-		# return eval("{}".format(state[0]))(state[1], state[2], tapped=state[3], turn_played=state[4])
-
-		card = None
-		if state[0] == "Forest":
-			card = Forest(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "NettleSentinel":
-			card = NettleSentinel(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "BurningTreeEmissary":
-			card = BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "SkarrganPitSkulk":
-			card = SkarrganPitSkulk(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "NestInvader":
-			card = NestInvader(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "EldraziSpawnToken":
-			card = EldraziSpawnToken(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "QuirionRanger":
-			card = QuirionRanger(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "VinesOfVastwood":
-			card = VinesOfVastwood(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "SilhanaLedgewalker":
-			card = SilhanaLedgewalker(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "VaultSkirge":
-			card = VaultSkirge(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "Rancor":
-			card = Rancor(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "ElephantGuide":
-			card = ElephantGuide(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif state[0] == "HungerOfTheHowlpack":
-			card = HungerOfTheHowlpack(state[1], state[2], tapped=state[3], turn_played=state[4])
-
-		return card
+		return Card.class_for_name(state[0])(state[1], state[2], tapped=state[3], turn_played=state[4])
 
 	def state_repr(self):
 		"""Return a hashable tuple representing the Card."""
@@ -407,35 +402,7 @@ class Creature(Card):
 
 	@staticmethod
 	def creature_for_state(state):
-		classname = state[0]
-
-		# eval is too slow
-		'''
-			c = eval("{}".format(classname))(
-				state[1], 
-				state[2], 
-				tapped=state[3],
-				turn_played=state[4],
-			)
-		'''
-
-		if classname == "QuirionRanger":
-			c = QuirionRanger(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif classname == "BurningTreeEmissary":
-			c = BurningTreeEmissary(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif classname == "SkarrganPitSkulk":
-			c = SkarrganPitSkulk(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif classname == "NestInvader":
-			c = NestInvader(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif classname == "EldraziSpawnToken":
-			c = EldraziSpawnToken(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif classname == "SilhanaLedgewalker":
-			c = SilhanaLedgewalker(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif classname == "VaultSkirge":
-			c = VaultSkirge(state[1], state[2], tapped=state[3], turn_played=state[4])
-		elif classname == "NettleSentinel":
-			c = NettleSentinel(state[1], state[2], tapped=state[3], turn_played=state[4])
-		
+		c = Card.class_for_name(state[0])(state[1], state[2], tapped=state[3], turn_played=state[4])
 		c.targettable = state[5]
 		c.temp_strength = state[6]
 		c.temp_hit_points = state[7]
