@@ -53,6 +53,8 @@ class Game():
 
 		self.damage_to_players = [0, 0]
 
+		self.stack = []
+
 		# a list of previous states the game has been in
 		self.states = [self.state_repr()]
 
@@ -78,6 +80,7 @@ class Game():
 				tuple(self.blockers),
 				tuple(self.blocks),
 				tuple(self.damage_to_players),
+				tuple(self.stack),
 		)
 
 	def game_for_state(self, state, lazy=False):
@@ -116,6 +119,7 @@ class Game():
 		clone_game.blockers = list(state[8])
 		clone_game.blocks = list(state[9])
 		clone_game.damage_to_players = list(state[10])
+		clone_game.stack = list(state[11])
 
 		return clone_game
 
@@ -169,7 +173,7 @@ class Game():
 		"""Play out a game between two bots."""
 		while not self.game_is_over():
 			player = self.get_players()[self.player_with_priority]
-			player.play_move(self)
+			move = player.play_move(self)
 
 		winner, winning_hp, losing_hp = self.winning_player()
 		if self.print_moves:
@@ -251,17 +255,15 @@ class Game():
 		else:
 			clone_game = self.game_for_state(state, lazy=True)
 
-		"""Do the move and increment the turn."""
 		mana_to_use = move[2]
-		if move[0].startswith('card'):
-			clone_game.play_card_move(move)
+		if move[0] == 'play_next_on_stack':		
+			clone_game.play_next_on_stack()
+		elif move[0].startswith('card') or move[0].startswith('ability'):
 			clone_game.tap_lands_for_mana(mana_to_use)
-		elif move[0].startswith('ability'):
-			clone_game.play_ability_move(move)
-			clone_game.tap_lands_for_mana(mana_to_use)
+			clone_game.play_move(move)
 		elif move[0].startswith('land_ability'):
-			clone_game.play_land_ability_move(move)
 			clone_game.tap_lands_for_mana(mana_to_use)
+			clone_game.play_land_ability_move(move)
 		else:
 			# too slow: eval("self.{}".format(move[0]))(move[1])
 			if move[0] == 'initial_draw':
@@ -274,6 +276,10 @@ class Game():
 				clone_game.resolve_combat(move[1])
 			elif move[0] == 'pass_the_turn':
 				clone_game.pass_the_turn(move[1])
+			elif move[0] == 'pass_priority_as_defender':
+				clone_game.pass_priority_as_defender(move[1])
+			elif move[0] == 'pass_priority_as_attacker':
+				clone_game.pass_priority_as_attacker(move[1])
 			elif move[0] == 'announce_attackers':
 				clone_game.announce_attackers(move[1])
 			elif move[0] == 'assign_blockers':
@@ -292,7 +298,6 @@ class Game():
 		colorless = 0
 
 		caster = self.get_players()[self.player_with_priority]
-
 		for mana in mana_to_tap:
 			if isinstance(mana, int):
 				colorless = mana
@@ -325,10 +330,16 @@ class Game():
 
 			for l in self.get_lands():
 				if l.owner == self.player_with_priority and not l.tapped:
-					if mana in l.mana_provided():
-						l.tapped = True
-						colored.pop(0)
+					used_land = False
+					for c in mana:
+						if c in l.mana_provided():
+							l.tapped = True
+							colored.pop(0)
+							used_land = True
+							break
+					if used_land:
 						break
+
 
 		while colorless > 0:
 			temp_index_to_remove = 0
@@ -376,8 +387,22 @@ class Game():
 				mana_dict[mana_symbol] = 1				
 		return mana_dict
 
-	def play_card_move(self, move):
+	def play_move(self, move):
 		"""Play a card based on the move tuple."""
+		self.stack.append(move)
+		if self.player_with_priority == self.current_turn_player():
+			self.player_with_priority = self.not_current_turn_player()
+		else:
+			self.player_with_priority = self.current_turn_player()
+
+	def play_next_on_stack(self):
+		move = self.stack.pop()
+		if move[0].startswith('card'):
+			self.play_card_move_from_stack(move)
+		elif move[0].startswith('ability'):
+			self.play_ability_move_from_stack(move)
+
+	def play_card_move_from_stack(self, move):
 		player_number = self.player_with_priority
 		target_creature = move[3]
 		mana_to_use = move[2]
@@ -389,7 +414,7 @@ class Game():
 		for land in self.get_lands():
 			land.react_to_spell(card)
 
-	def play_ability_move(self, move):
+	def play_ability_move_from_stack(self, move):
 		"""Play an activated based on the move tuple."""
 		player_number = self.player_with_priority
 		target_creature_id = move[3]
@@ -438,13 +463,21 @@ class Game():
 		else:
 			game_state = state_history[-1]
 			game = self.game_for_state(game_state, lazy=True)
-
-		if game.phase == "setup":
+		if len(game.stack) > 0 and game.stack[-1][5] == game.player_with_priority:		
+			return [('play_next_on_stack', game.player_with_priority, 0),]			
+		elif len(game.stack) > 0 and game.stack[-1][5] != game.player_with_priority and game.player_with_priority == game.current_turn_player():		
+			return[('pass_priority_as_attacker', game.player_with_priority, 0)]
+		elif game.phase == "setup":
 			return [('initial_draw', game.player_with_priority, 0),]			
 		elif game.phase == "draw":
 			return [('draw_card', game.player_with_priority, 0),]			
 		elif game.phase == "declare_blockers":
 			return game.all_legal_blocks()
+		elif game.player_with_priority != game.current_turn_player():
+			possible_moves = game.add_instant_creature_abilities(game, set())
+			possible_moves = game.add_land_abilities(game, possible_moves)
+			possible_moves.add(('pass_priority_as_defender', game.player_with_priority, 0))
+			return list(possible_moves)
 		
 		possible_moves = game.add_card_actions(game, set())
 		possible_moves = game.add_instant_creature_abilities(game, possible_moves)
@@ -455,9 +488,9 @@ class Game():
 			possible_moves.add(('resolve_combat', game.player_with_priority, 0),)
 			return list(possible_moves)
 
-		if not self.print_moves:
-			print "possible moves before add pass is {}".format(possible_moves)
+		
 		possible_moves.add(('pass_the_turn', game.player_with_priority, 0))
+			
 		return list(possible_moves)
 
 	def played_land(self):
@@ -635,10 +668,11 @@ class Game():
 					is_blocked = True
 					for blocker_id in block[1]:
 						blocker = self.creature_with_id(blocker_id)
-						damage_to_attacker += blocker.total_damage()
-						if attacker_strength_to_apportion >= blocker.total_hit_points():
-							dead_creatures.append(blocker_id)
-						attacker_strength_to_apportion -= blocker.total_hit_points()
+						if blocker:  #it might have died
+							damage_to_attacker += blocker.total_damage()
+							if attacker_strength_to_apportion >= blocker.total_hit_points():
+								dead_creatures.append(blocker_id)
+							attacker_strength_to_apportion -= blocker.total_hit_points()
 
 					if damage_to_attacker >= attacker.total_hit_points():
 						dead_creatures.append(attacker.id)
@@ -680,6 +714,12 @@ class Game():
 		for creature in self.get_creatures():
 			if creature.id == creature_id:
 				return creature
+
+	def pass_priority_as_attacker(self, moving_player):
+		self.player_with_priority = self.not_current_turn_player()
+
+	def pass_priority_as_defender(self, moving_player):
+		self.player_with_priority = self.current_turn_player()
 
 	def pass_the_turn(self, moving_player):
 		"""Pass to the next player."""

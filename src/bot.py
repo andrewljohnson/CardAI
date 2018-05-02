@@ -31,6 +31,7 @@ class Bot(object):
 		"""Play a random move in game."""
 		move = choice(list(game.legal_plays(game.states[:])))
 		game.next_state(None, move, game=game)
+		return move
 
 	def state_repr(self):
 		"""Return a hashable tuple representing the Bot."""

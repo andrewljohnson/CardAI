@@ -85,7 +85,12 @@ class Card(object):
 			total_mana += count
 		if total_mana >= self.mana_cost():
 			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
-			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
+			return [('card-{}'.format(self.__class__.__name__), 
+					card_index, 
+					self.total_mana_cost(), 
+					None,
+					None,
+					game.player_with_priority)]
 		return []
 
 
@@ -136,7 +141,13 @@ class Land(Card):
 		if game.played_land():
 			return []
 		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
-		return [('card-{}'.format(self.__class__.__name__), card_index, (), None)]
+		return [('card-{}'.format(
+			self.__class__.__name__), 
+			card_index, 
+			(), 
+			None,
+			None,
+			game.player_with_priority)]
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Remove this from the player's hand and add it to game.lands."""
@@ -167,7 +178,8 @@ class Land(Card):
 				game.get_lands().index(self), 
 				(), 
 				None, 
-				None
+				None,
+				game.player_with_priority
 			)
 		 ]
 
@@ -182,7 +194,9 @@ class Land(Card):
 					game.get_players().index(player), 
 					self.__class__.__name__, 
 					self.mana_provided_list(),
-					player.temp_mana
+					player.temp_mana,
+					game.player_with_priority
+
 				)
 
 class Forest(Land):
@@ -190,7 +204,7 @@ class Forest(Land):
 
 	def mana_provided_list(self):
 		"""The amount and kind of mana provided."""
-		return ('G')
+		return ('G', )
 
 	def mana_provided(self):
 		"""The amount and kind of mana provided."""
@@ -202,7 +216,7 @@ class Mountain(Land):
 
 	def mana_provided_list(self):
 		"""The amount and kind of mana provided."""
-		return ('R')
+		return ('R', )
 
 	def mana_provided(self):
 		"""The amount and kind of mana provided."""
@@ -233,22 +247,37 @@ class VinesOfVastwood(Card):
 			if c.hexproof and c.owner != game.player_with_priority:
 				continue
 			if green_count > 0:
-				possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, ('G'), c.id))
+				possible_moves.append(
+					('card-{}'.format(self.__class__.__name__), 
+					card_index, 
+					('G', ), 
+					c.id,
+					None,
+					game.player_with_priority))
 			if green_count > 1:
-				possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, ('G', 'G'), c.id))
+				possible_moves.append(
+					('card-{}'.format(self.__class__.__name__), 
+					card_index, 
+					('G', 'G'), 
+					c.id,
+					None,
+					game.player_with_priority))
 
 		return possible_moves
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Pump a creature based on how much mana is used."""
 		creature = game.creature_with_id(target_creature_id)
+		if not creature:  # it died
+			print "VinesOfVastwood fizzled, no creature with id {}.".format(target_creature_id)
+			return
 		creature.temp_targettable = False
 		caster = game.get_players()[game.player_with_priority]
 		if mana_to_use == ('G', 'G'):
 			creature.temp_strength += 4
 			creature.temp_hit_points += 4
 		if game.print_moves:
-			if mana_to_use == ('G'):
+			if mana_to_use == ('G', ):
 				print "> {} {} played VinesOfVastwood on {}." \
 					.format(
 						caster.__class__.__name__, 
@@ -291,7 +320,12 @@ class HungerOfTheHowlpack(Card):
 			if c.hexproof and c.owner != game.player_with_priority:
 				continue
 			if green_count > 0:
-				possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, ('G'), c.id))
+				possible_moves.append(('card-{}'.format(self.__class__.__name__), 
+										card_index, 
+										('G', ), 
+										c.id,
+										None,
+										game.player_with_priority))
 
 		return possible_moves
 
@@ -300,18 +334,15 @@ class HungerOfTheHowlpack(Card):
 		creature = game.creature_with_id(target_creature_id)
 		morbid = False
 		if creature:
-			pass
-		else:
 			creature.strength_counters += 1
 			creature.hit_point_counters += 1
 		if game.print_moves:
 			format_str = None
 			if morbid:
-				format_str = "> {} {} played {} on {}, with morbid, total stats now {}/{}.."
+				format_str = "> Player {} played {} on {}, with morbid, total stats now {}/{}.."
 			else:
-				format_str = "> {} {} played {} on {}, total stats now {}/{}."
+				format_str = "> Player {} played {} on {}, total stats now {}/{}."
 			print format_str.format( 
-				caster.__class__.__name__, 
 				self.owner, 
 				self.__class__.__name__,
 				creature.__class__.__name__,
@@ -338,13 +369,23 @@ class Fireball(Card):
 
 		if has_red and total_mana > 1:
 			for mana in range(2, total_mana+1):
-				possible_moves.append(('card-fireball', card_index, ('R', mana-1), None))
+				possible_moves.append(('card-fireball', 
+										card_index, 
+										('R', mana-1), 
+										None,
+										None,
+										game.player_with_priority))
 			for c in game.get_creatures():
 				if c.hexproof and c.owner != game.player_with_priority:
 					continue
 				if c.targettable and c.temp_targettable:
 					for mana in range(2, total_mana+1):
-						possible_moves.append(('card-fireball-creature', card_index, ('R', mana-1), c.id))
+						possible_moves.append(('card-fireball-creature', 
+							card_index, 
+							('R', mana-1), 
+							c.id,
+							None,
+							game.player_with_priority))
 		return possible_moves
 
 	def play(self, game, mana_to_use, target_creature_id):
@@ -526,7 +567,12 @@ class GreenCreature(Creature):
 				has_green = True
 		if has_green and total_mana >= self.mana_cost():
 			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
-			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
+			return [('card-{}'.format(self.__class__.__name__), 
+				card_index, 
+				self.total_mana_cost(), 
+				None,
+				None,
+				game.player_with_priority)]
 		return []
 
 
@@ -551,7 +597,7 @@ class NettleSentinel(GreenCreature):
 	"""
 
 	def total_mana_cost(self):
-		return ('G')
+		return ('G', )
 
 	def initial_strength(self):
 		return 2
@@ -583,7 +629,7 @@ class QuirionRanger(GreenCreature):
 		self.activated = False
 
 	def total_mana_cost(self):
-		return ('G')
+		return ('G', )
 
 	def initial_strength(self):
 		return 1
@@ -619,7 +665,8 @@ class QuirionRanger(GreenCreature):
 								game.get_creatures().index(self), 
 								(), 
 								creature.id, 
-								land.id
+								land.id,
+								game.player_with_priority
 							)
 						)
 		return possible_moves
@@ -685,7 +732,13 @@ class BurningTreeEmissary(GreenCreature):
 					either_count += count
 		if either_count >= self.mana_cost():
 			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
-			return [('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None)]
+			return [('card-{}'.format(
+				self.__class__.__name__), 
+			card_index, 
+			self.total_mana_cost(), 
+			None,
+			None,
+			game.player_with_priority)]
 		return []
 
 	def play(self, game, mana_to_use, target_creature_id):
@@ -705,7 +758,7 @@ class SkarrganPitSkulk(GreenCreature):
 	"""
 
 	def total_mana_cost(self):
-		return ('G')
+		return ('G',)
 
 	def initial_strength(self):
 		return 1
@@ -746,7 +799,7 @@ class NestInvader(GreenCreature):
 	def play(self, game, mana_to_use, target_creature_id):
 		super(NestInvader, self).play(game, mana_to_use, target_creature_id)
 		token = EldraziSpawnToken(self.owner, None, tapped=False, turn_played=game.current_turn)
-		token.card_id = game.new_card_id
+		token.id = game.new_card_id
 		game.new_card_id += 1
 		game.get_players()[self.owner].hand.append(token)
 		token.play(game, 0, target_creature_id)
@@ -777,7 +830,8 @@ class EldraziSpawnToken(Creature):
 				game.get_creatures().index(self), 
 				(), 
 				None, 
-				None
+				None,
+				game.player_with_priority
 			)
 		]
 
@@ -882,10 +936,20 @@ class VaultSkirge(GreenCreature):
 		casting_player = game.get_players()[game.player_with_priority]
 		if has_green and total_mana >= self.mana_cost():
 			card_index = casting_player.get_hand().index(self)
-			possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, self.total_mana_cost(), None))
+			possible_moves.append(('card-{}'.format(self.__class__.__name__), 
+				card_index, 
+				self.total_mana_cost(), 
+				None,
+				None,
+				game.player_with_priority))
 		if casting_player.hit_points >= 2 and total_mana >= 1:
 			card_index = casting_player.get_hand().index(self)
-			possible_moves.append(('card-{}'.format(self.__class__.__name__), card_index, (1, 'L2'), None))
+			possible_moves.append(('card-{}'.format(self.__class__.__name__), 
+				card_index, 
+				(1, 'L2'), 
+				None,
+				None,
+				game.player_with_priority))
 		return possible_moves
 
 
@@ -917,7 +981,13 @@ class CreatureEnchantment(Card):
 				if c.hexproof and c.owner != game.player_with_priority:
 					continue
 				if c.targettable and c.temp_targettable:
-					possible_moves.append(('card-rancor', card_index, ('G'), c.id))
+					possible_moves.append(
+						('card-rancor', 
+						card_index, 
+						('G', ), 
+						c.id,
+						None,
+						game.player_with_priority))
 		return possible_moves
 
 	def play(self, game, mana_to_use, target_creature_id):
@@ -949,7 +1019,7 @@ class Rancor(CreatureEnchantment):
 		super(Rancor, self).__init__(owner, card_id, tapped=False, turn_played=turn_played)
 
 	def total_mana_cost(self):
-		return ('G')
+		return ('G', )
 
 	def attack_bonus(self):
 		return 2
@@ -970,7 +1040,12 @@ class Rancor(CreatureEnchantment):
 				if c.hexproof and c.owner != game.player_with_priority:
 					continue
 				if c.targettable and c.temp_targettable:
-					possible_moves.append(('card-rancor', card_index, ('G'), c.id))
+					possible_moves.append(('card-rancor', 
+						card_index, 
+						('G', ), 
+						c.id,
+						None,
+						game.player_with_priority))
 		return possible_moves
 
 

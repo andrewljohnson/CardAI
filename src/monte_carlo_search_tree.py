@@ -7,7 +7,7 @@ from random import choice
 from copy import deepcopy
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, hit_points=0, max_moves=50, simulation_time=4, C=1.4):
+	def __init__(self, hit_points=0, max_moves=60, simulation_time=3, C=1.4):
 		"""
 			Adjust simulation_time and max_moves to taste.
 
@@ -40,7 +40,7 @@ class MonteCarloSearchTreeBot(Bot):
 		"""Play a move in game."""
 		move = self.get_play()
 		game.next_state(None, move, game=game)
-		# print game.state_repr()
+		return move
 
 	def get_play(self):
 		"""
@@ -88,6 +88,7 @@ class MonteCarloSearchTreeBot(Bot):
 		if self.show_simulation_results:
 			# Display the stats for each possible play.
 			'''
+			'''
 			for x in sorted(
 				((100 * self.wins.get((player, S), 0) * 1.0 /
 					self.plays.get((player, S), 1),
@@ -97,7 +98,6 @@ class MonteCarloSearchTreeBot(Bot):
 				reverse=True
 			):
 				print "{3}: {0:.2f}% ({1} / {2})".format(*x)
-			'''
 		return move
 
 	def run_simulation(self):
@@ -124,7 +124,6 @@ class MonteCarloSearchTreeBot(Bot):
 				cached_games[(curr_play_num, state)] = self.game.game_for_state(self.game.state_repr(), lazy=True)
 				cached_games[(curr_play_num, state)].cached_legal_moves = legal[:]
 				
-			# print "chose from {}".format(legal)
 			moves_states = []
 			for p in legal:
 				if (p, state) in cached_end_states:
