@@ -5,9 +5,10 @@ from bot import Bot
 from math import log, sqrt
 from random import choice
 from copy import deepcopy
+import itertools, sys
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, hit_points=0, max_moves=60, simulation_time=3, C=1.4):
+	def __init__(self, hit_points=0, max_moves=1000, simulation_time=2, C=1.4):
 		"""
 			Adjust simulation_time and max_moves to taste.
 
@@ -66,8 +67,14 @@ class MonteCarloSearchTreeBot(Bot):
 
 		games = 0
 		begin = datetime.datetime.utcnow()
+
+		spinner = itertools.cycle(['-', '/', '|', '\\'])
+		sys.stdout.write("Thinking ")
 		while datetime.datetime.utcnow() - begin < self.calculation_time:
 			self.run_simulation()
+			sys.stdout.write(spinner.next())
+			sys.stdout.flush()
+			sys.stdout.write('\b')
 			games += 1
 		
 		moves_states = []
@@ -88,7 +95,6 @@ class MonteCarloSearchTreeBot(Bot):
 		if self.show_simulation_results:
 			# Display the stats for each possible play.
 			'''
-			'''
 			for x in sorted(
 				((100 * self.wins.get((player, S), 0) * 1.0 /
 					self.plays.get((player, S), 1),
@@ -98,6 +104,7 @@ class MonteCarloSearchTreeBot(Bot):
 				reverse=True
 			):
 				print "{3}: {0:.2f}% ({1} / {2})".format(*x)
+			'''
 		return move
 
 	def run_simulation(self):
@@ -170,3 +177,6 @@ class MonteCarloSearchTreeBot(Bot):
 			plays[(player, state)] += 1
 			if player == winner:
 				wins[(player, state)] += 1
+
+	def bot_type(self):
+		return "mcst"

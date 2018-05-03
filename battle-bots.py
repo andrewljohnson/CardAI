@@ -16,10 +16,10 @@ def create_parser():
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
 		"--players",
-		default=[2, 0],
+		default=[2, 3],
 		nargs=2,
 		type=int,
-		help="list of 2 players - defaults 2 0 - 0: plays randomly, 1: monte carlo, 2: mcst, 3: Human"
+		help="list of 2 players - defaults 2 3 - 0: plays randomly, 1: monte carlo, 2: mcst, 3: Human"
 	)
 	parser.add_argument(
 		"--starting_hit_points",

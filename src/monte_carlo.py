@@ -45,3 +45,7 @@ class MonteCarloBot(Bot):
 			return 0
 		
 		return wins * 1.0 / (wins+losses)
+
+	def bot_type(self):
+		return "montecarlo"
+

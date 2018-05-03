@@ -63,6 +63,7 @@ class Game():
 		# whether to print each move, typically False during simulation, but true for a real game
 		self.print_moves = False 
 
+		self.hide_bot_hand = True
 
 	def state_repr(self):
 		"""A hashable representation of the game state."""
@@ -180,12 +181,10 @@ class Game():
 			if self.game_is_drawn():
 				print "Game Over - Draw"
 			else:
-				print "Game Over - {} {} wins! Final hit points are {} to {}." \
-					.format(winner.__class__.__name__, 
-							self.get_players().index(winner), 
+				print "Game Over - {} wins! Final hit points are {} to {}." \
+					.format(winner.display_name(self.get_players().index(winner)),
 							winning_hp, 
 							losing_hp)
-
 		return winner
 
 	def winner(self, state_history):
@@ -304,10 +303,9 @@ class Game():
 			elif mana.startswith("L"):
 				caster.hit_points -= int(mana[1:])
 				if self.print_moves:
-					print "> {} {} lost {} life from casting a Phyrexian, now at {}." \
+					print "> {} lost {} life from casting a Phyrexian, now at {}." \
 						.format(
-							caster.__class__.__name__, 
-							self.player_with_priority, 
+							caster.display_name(self.player_with_priority), 
 							int(mana[1:]),
 							caster.hit_points
 						)
@@ -421,8 +419,9 @@ class Game():
 		target_land_id = move[4]
 		mana_to_use = move[2]
 		card_index = move[1]
-		card = self.get_creatures()[card_index]
-		card.activate_ability(self, mana_to_use, target_creature_id, target_land_id)
+		card = Creature.creature_for_state(move[6])
+		card_in_play = self.creature_with_id(target_creature_id)
+		card.activate_ability(self, mana_to_use, target_creature_id, target_land_id, card_in_play)
 		#TODO should this be diff function than in play_card_move?
 		for creature in self.get_creatures():
 			creature.react_to_spell(card)
@@ -549,23 +548,39 @@ class Game():
 
 	def initial_draw(self, moving_player):
 		"""Add some cards to each player's hand."""
+		if moving_player == 0:
+			if self.print_moves:
+				print "# DRAW STARTING HANDS ####################################"
+
 	 	for i in range(0,7):
 	 		self.draw_card(moving_player);
 		if self.print_moves:
 			current_player = self.get_players()[moving_player]
-			hand_strings = [type(c).__name__ for c in current_player.get_hand()]
-			print "> {} {} drew her hand: {} ({} cards)." \
-				.format(current_player.__class__.__name__, 
-						self.get_players().index(current_player), 
-						hand_strings, 
-						len(current_player.get_hand()))	 		
+			if self.is_human_playing() and current_player.__class__.__name__ != "Human" and self.hide_bot_hand:
+				print "> {} drew {} cards." \
+					.format(current_player.display_name(moving_player), 
+							len(current_player.get_hand()),
+							)	 		
+			else:
+				hand_strings = [c.display_name() for c in current_player.get_hand()]
+				print "> {} drew {} cards: {}." \
+					.format(current_player.display_name(moving_player), 
+							len(current_player.get_hand()),
+							', '.join(hand_strings), 
+							)	 		
 		if self.player_with_priority == self.current_turn_player():
 			self.player_with_priority = self.not_current_turn_player()
 		else:	
 			self.player_with_priority = self.current_turn_player()
 			self.phase = 'draw'
 			if self.print_moves:
-				print "End of initial draw SETUP"
+				print "# TURN 1 ################################################"
+
+	def is_human_playing(self):
+		for p in self.get_players():
+			if p.__class__.__name__ == "Human":
+				return True
+		return False
 
 	def current_turn_player(self):
 		"""The index in self.players for the player whose turn it is. """
@@ -597,11 +612,14 @@ class Game():
 				p.temp_mana = []
 			self.phase = "precombat"
 		
-		if self.print_moves and self.phase != 'setup':
-			print "> {} {} drew {}." \
-				.format(current_player.__class__.__name__, 
-						self.get_players().index(current_player), 
-						type(new_card).__name__)	 		
+		if self.print_moves and self.phase != 'setup':			
+			if self.is_human_playing() and current_player.__class__.__name__ != "Human" and self.hide_bot_hand:
+				print "> {} drew a card." \
+					.format(current_player.display_name(moving_player))	 		
+			else:
+				print "> {} drew {}." \
+					.format(current_player.display_name(moving_player),
+							new_card.display_name())	 		
 
 	def announce_attackers(self, attackers):
 		"""Set attackers, shift priority to the defending player, and update the phase."""
@@ -613,9 +631,7 @@ class Game():
 			attacker.tapped = True
 		if self.print_moves:
 			current_player = self.get_players()[self.player_with_priority]
-			print "> {} {} announced attack." \
-				.format(current_player.__class__.__name__, 
-						self.get_players().index(current_player))
+			print "> {} announced attack.".format(current_player.display_name(self.player_with_priority))
 		self.player_with_priority = self.not_current_turn_player()
 		self.phase = "declare_blockers"
 
@@ -627,9 +643,8 @@ class Game():
 
 		if self.print_moves:
 			current_player = self.get_players()[self.player_with_priority]
-			print "> {} {} blocked {} with {}." \
-				.format(current_player.__class__.__name__, 
-					self.get_players().index(current_player), 
+			print "> {} blocked {} with {}." \
+				.format(current_player.display_name(self.player_with_priority), 
 					block_tuple[0], 
 					block_tuple[1])
 
@@ -637,9 +652,8 @@ class Game():
 		"""Shift priority to the defending player and update the phase."""
 		if self.print_moves:
 			current_player = self.get_players()[self.player_with_priority]
-			print "> {} {} finished blocking." \
-				.format(current_player.__class__.__name__, 
-						self.get_players().index(current_player))
+			print "> {} finished blocking." \
+				.format(current_player.display_name(self.player_with_priority))
 
 		self.phase = 'combat_resolution'
 		self.player_with_priority = self.current_turn_player()
@@ -687,15 +701,13 @@ class Game():
 		self.damage_to_players[self.players.index(opponent)] += total_attack
 		if self.print_moves:
 			if total_attack > 0:
-				print "> {} {} attacked for {}, {} killed." \
-					.format(current_player.__class__.__name__,
-							self.get_players().index(current_player),
+				print "> {} attacked for {}, {} killed." \
+					.format(current_player.display_name(self.player_with_priority),
 							total_attack,
 							[d.__class__.__name__ for d in dead_creatures])
 			else:
-				print "> {} {} attacked, {} killed." \
-					.format(current_player.__class__.__name__, 
-							self.get_players().index(current_player), 
+				print "> {} attacked, {} killed." \
+					.format(current_player.display_name(self.player_with_priority), 
 							dead_creatures)
 
 		self.attackers = []
@@ -743,7 +755,7 @@ class Game():
 		self.damage_to_players = [0, 0]
 		self.phase = "draw"
 		if self.print_moves:
-			print "End of Turn {}".format(self.current_turn)
+			print "# TURN {} ###############################################".format(self.current_turn + 1)
 
 	def all_legal_blocks(self):
 		"""
@@ -782,3 +794,99 @@ class Game():
 
 	def opponent_was_dealt_damage(self):
 		return self.damage_to_players[self.not_current_turn_player()] > 0
+
+
+	def move_display_string(self, move):
+		"""Move is a tuple. Prints a display for humans."""
+
+		move_type = move[0] 
+		mana_to_use = move[2]
+
+		if move_type == 'play_next_on_stack':		
+			return "Playing Top Move on Stack: {}".format(self.stack[-1])
+		elif move_type.startswith('card'):
+			card_index = move[1]
+			card = self.get_players()[self.player_with_priority].get_hand()[card_index]
+			if card.card_type == "creature":
+				action_word = "Summon"
+			elif card.card_type == "land":
+				action_word = "Play"
+			else:
+				action_word = "Cast"
+
+			target_creature_id = move[3]
+			target = self.creature_with_id(target_creature_id)
+			target_string =  "{} {}".format(action_word, card.display_name())
+			if target:
+				target_string += " on {}".format(target.display_name())
+			if mana_to_use:
+				casting_cost = ""
+				for c in mana_to_use:
+					if type(c) == int:
+						casting_cost += str(c)
+					elif 'L' in c:
+						casting_cost += " and {} life".format(c.split('L')[1])
+					elif type(c) == str:
+						casting_cost += c
+				return "({}) {}".format(casting_cost, target_string)
+			else:
+				return target_string
+		elif move[0].startswith('ability'):
+			target_creature_id = move[3]
+			acting_creature_state = move[6]
+			card = Creature.creature_for_state(acting_creature_state)
+			card_in_play = self.creature_with_id(target_creature_id)
+
+			action_string = None
+			if not card_in_play:
+				action_string = "{} {}".format(card.action_word(), card.display_name())
+			elif card.id == card_in_play.id:
+				action_string = "{} {} with itself".format(card.action_word(), card.display_name())
+			else:
+				action_string = "{} {} with {}".format(card.action_word(), card_in_play.display_name(), card.display_name())
+
+			target_land_id = move[4]
+			land_to_return = None
+			tapped_string = None
+			for land in self.get_lands():
+				if land.id == target_land_id:
+					land_to_return = land
+					if land.tapped:
+						tapped_string = "tapped"
+					else:
+						tapped_string = "untapped"
+					break
+			land_string = None
+			if land_to_return:
+				action_string += ", returning {} {}".format(tapped_string, land.display_name())
+
+			return action_string
+		elif move_type.startswith('land_ability'):
+			card_index = move[1]
+			card = self.get_lands()[card_index]
+			return "Tap {}".format(card.display_name())
+		else:
+			# too slow: eval("self.{}".format(move[0]))(move[1])
+			if move_type == 'finish_blocking':
+				return "Finish Blocking {}".format(move)
+			elif move_type == 'resolve_combat':
+				return "Resolve Combat"
+			elif move_type == 'pass_the_turn':
+				return "Pass the Turn"
+			elif move_type == 'pass_priority_as_defender' or move_type == 'pass_priority_as_attacker':
+				return "Pass Priority {}".format(move)
+			elif move_type == 'announce_attackers':
+				attackers = move[1]
+				attacker_names = []
+				for creature_id in attackers:
+					attacker = self.creature_with_id(creature_id)
+					attacker_names.append(attacker.display_name())
+				return "Attack with {}".format(", ".join(attacker_names))
+			elif move_type == 'assign_blockers':
+				return "Assign Blockers {}".format(move)
+
+		state_rep = None
+		if repr_state:
+			state_rep = clone_game.state_repr()
+			clone_game.states.append(state_rep)
+		return state_rep, clone_game

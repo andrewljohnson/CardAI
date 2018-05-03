@@ -53,3 +53,9 @@ class Bot(object):
 			instantiated_cards.append(Card.card_for_state(card_tuple))
 		self.hand = instantiated_cards
 		return self.hand
+
+	def bot_type(self):
+		return "random"
+
+	def display_name(self, current_player):
+		return "Player {} ({})".format(current_player + 1, self.bot_type())

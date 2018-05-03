@@ -1,3 +1,5 @@
+from re import finditer
+
 """Card encapsulates the actions of a fantasy card."""
 
 class Card(object):
@@ -16,7 +18,7 @@ class Card(object):
 		# what turn number teh card last came into play
 		self.turn_played = turn_played
 
-		# sometimes set to "instant"
+		# "instant" or "creature" or "land"
 		self.card_type = None
 
 	@staticmethod
@@ -93,12 +95,21 @@ class Card(object):
 					game.player_with_priority)]
 		return []
 
+	def display_name(self):
+		"""Split the name on uppercase letter and add spaces."""
+		matches = finditer('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)',self.__class__.__name__)
+		return " ".join([m.group(0) for m in matches])
+
+	def action_word(self):
+		return "Use"
+
 
 class Land(Card):
 	"""A card that produces any color mana."""
 
 	def __init__(self, owner, card_id, tapped=False, turn_played=None):
 		super(Land, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
+		self.card_type = "land"
 
 	@staticmethod
 	def land_for_state(state):
@@ -269,7 +280,8 @@ class VinesOfVastwood(Card):
 		"""Pump a creature based on how much mana is used."""
 		creature = game.creature_with_id(target_creature_id)
 		if not creature:  # it died
-			print "VinesOfVastwood fizzled, no creature with id {}.".format(target_creature_id)
+			if game.print_moves:
+				print "VinesOfVastwood fizzled, no creature with id {}.".format(target_creature_id)
 			return
 		creature.temp_targettable = False
 		caster = game.get_players()[game.player_with_priority]
@@ -440,6 +452,7 @@ class Creature(Card):
 		self.hexproof = False
 		self.lifelink = False
 		self.enchantments = []
+		self.card_type = "creature"
 
 	@staticmethod
 	def creature_for_state(state):
@@ -533,9 +546,6 @@ class Creature(Card):
 		if self.flying and not creature.flying:
 			return False
 		return True
-
-	def possible_ability_moves(self, game):
-		return []
 
 	def creature_types(self):
 		return []
@@ -666,12 +676,14 @@ class QuirionRanger(GreenCreature):
 								(), 
 								creature.id, 
 								land.id,
-								game.player_with_priority
+								game.player_with_priority,
+												self.state_repr(), 
+
 							)
 						)
 		return possible_moves
 
-	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
+	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id, card_in_play):
 		"""Return a forest to player's hand and untap a creature."""
 		self.activated_ability = True
 
@@ -705,6 +717,8 @@ class QuirionRanger(GreenCreature):
 	def creature_types(self):
 		return ['Elf']
 
+	def action_word(self):
+		return "Untap"
 
 class BurningTreeEmissary(GreenCreature):
 	"""When Burning-Tree Emissary enters the battlefield, add RedGreen."""
@@ -749,6 +763,8 @@ class BurningTreeEmissary(GreenCreature):
 	def creature_types(self):
 		return ['Human', 'Shaman']
 
+	def display_name(self):
+		return "Burning-Tree Emissary"
 
 class SkarrganPitSkulk(GreenCreature):
 	"""
@@ -831,11 +847,12 @@ class EldraziSpawnToken(Creature):
 				(), 
 				None, 
 				None,
-				game.player_with_priority
+				game.player_with_priority,
+				self.state_repr(), 
 			)
 		]
 
-	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
+	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id, card_in_play):
 		if self.id in game.attackers:
 			game.attackers.remove(self.id)
 		if self.id in game.blockers:
@@ -859,7 +876,11 @@ class EldraziSpawnToken(Creature):
 			list_block[1] = list_tuple
 			block_where_blocking = tuple(list_block)
 
-		game.creatures.remove(self)
+		for c in game.get_creatures():
+			if c.id == self.id:
+				game.get_creatures().remove(c)
+				break
+
 		player = game.get_players()[game.player_with_priority]
 		player.temp_mana += [1]
 
@@ -874,6 +895,8 @@ class EldraziSpawnToken(Creature):
 	def creature_types(self):
 		return ['Eldrazi', 'Token']
 
+	def action_word(self):
+		return "Sacrifice"
 
 class SilhanaLedgewalker(GreenCreature):
 	"""
@@ -958,6 +981,7 @@ class CreatureEnchantment(Card):
 
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
 		super(CreatureEnchantment, self).__init__(owner, card_id, tapped=False, turn_played=turn_played)
+		self.card_type = "enchantment"
 
 	def attack_bonus(self):
 		return 0
@@ -996,7 +1020,8 @@ class CreatureEnchantment(Card):
 		summoner.get_hand().remove(self)
 		self.turn_played = game.current_turn
 		target_creature = game.creature_with_id(target_creature_id)
-		target_creature.enchantments.append(self)
+		if target_creature: # if it didn't die
+			target_creature.enchantments.append(self)
 		if game.print_moves:
 			player = game.get_players()[game.player_with_priority]
 			print "> {} {} played a {} on {}." \
