@@ -167,8 +167,8 @@ class Land(Card):
 		player = game.get_players()[game.player_with_priority]
 		player.get_hand().remove(self)
 		if game.print_moves:
-			print "> {} {} played a {}." \
-				.format(player.__class__.__name__, game.get_players().index(player), self.__class__.__name__, self.id, )
+			print "> {} played a {}." \
+				.format(player.display_name(game.player_with_priority), self.__class__.__name__, self.id, )
 
 	def mana_provided(self):
 		"""The amount and kind of mana provided."""
@@ -199,10 +199,9 @@ class Land(Card):
 		player = game.get_players()[game.player_with_priority]
 		player.temp_mana += list(self.mana_provided_list())
 		if game.print_moves:
-			print "> {} {} tapped {} for {}, has {} floating." \
+			print "> {} tapped {} for {}, has {} floating." \
 				.format(
-					player.__class__.__name__, 
-					game.get_players().index(player), 
+					player.display_name(game.player_with_priority), 
 					self.__class__.__name__, 
 					self.mana_provided_list(),
 					player.temp_mana,
@@ -290,16 +289,14 @@ class VinesOfVastwood(Card):
 			creature.temp_hit_points += 4
 		if game.print_moves:
 			if mana_to_use == ('G', ):
-				print "> {} {} played VinesOfVastwood on {}." \
+				print "> {} played VinesOfVastwood on {}." \
 					.format(
-						caster.__class__.__name__, 
-						game.get_players().index(caster), 
+						caster.get_display_name(game.player_with_priority), 
 						creature.__class__.__name__)
 			else:
-				print "> {} {} played kicked VinesOfVastwood on {}, total power now {}." \
+				print "> {} played kicked VinesOfVastwood on {}, total power now {}." \
 					.format(
-						caster.__class__.__name__, 
-						game.get_players().index(caster), 
+						caster.display_name(game.player_with_priority), 
 						creature.__class__.__name__,
 						creature.total_damage())
 
@@ -421,16 +418,16 @@ class Fireball(Card):
 				creature.hit_points -= colorless
 
 			if game.print_moves:
-				print "> {} {} fireballed {} for {} damage." \
-				.format(blaster.__class__.__name__, game.get_players().index(blaster), creature.__class__.__name__, colorless)
+				print "> {} fireballed {} for {} damage." \
+				.format(blaster.display_name(game.player_with_priority), creature.__class__.__name__, colorless)
 		else:
 			blastee = game.opponent(blaster)
 			blastee.hit_points -= colorless
 			game.damage_to_players[game.players.index(blastee)] += colorless
 
 			if game.print_moves:
-				print "> {} {} fireballed for {} damage." \
-				.format(blaster.__class__.__name__, game.get_players().index(blaster), colorless)
+				print "> {} fireballed for {} damage." \
+				.format(blaster.display_name(game.player_with_priority), colorless)
 
 
 class Creature(Card):
@@ -530,10 +527,9 @@ class Creature(Card):
 		game.get_creatures().append(self)
 		if game.print_moves:
 			player = game.get_players()[game.player_with_priority]
-			print "> {} {} summoned a {}/{} {}." \
+			print "> {} summoned a {}/{} {}." \
 				.format(
-					player.__class__.__name__, 
-					game.players.index(player), 
+					player.display_name(game.player_with_priority), 
 					self.total_damage(), 
 					self.total_hit_points(), 
 					self.__class__.__name__
@@ -555,10 +551,9 @@ class Creature(Card):
 			owner = game.get_players()[self.owner] 
 			owner.hit_points += self.total_damage()
 			if game.print_moves:
-				print "> {} {} gained {} life from {}." \
+				print "> {} gained {} life from {}." \
 					.format(
-						owner.__class__.__name__, 
-						self.owner, 
+						owner.display_name(game.player_with_priority), 
 						self.total_damage(), 
 						self.__class__.__name__
 					)
@@ -701,10 +696,9 @@ class QuirionRanger(GreenCreature):
 
 		if game.print_moves:
 			player = game.get_players()[game.player_with_priority]
-			print "> {} {} untapped {} with {} returning {}." \
+			print "> {} untapped {} with {} returning {}." \
 				.format(
-					player.__class__.__name__, 
-					game.get_players().index(player), 
+					player.display_name(game.player_with_priority), 
 					creature.__class__.__name__, 
 					self.__class__.__name__,
 					land_to_return.__class__.__name__,
@@ -885,10 +879,9 @@ class EldraziSpawnToken(Creature):
 		player.temp_mana += [1]
 
 		if game.print_moves:
-			print "> {} {} sacrificed {}." \
+			print "> {} sacrificed {}." \
 				.format(
-					player.__class__.__name__, 
-					game.player_with_priority, 
+					player.display_name(game.player_with_priority), 
 					self.__class__.__name__, 
 				)
 
@@ -1024,10 +1017,9 @@ class CreatureEnchantment(Card):
 			target_creature.enchantments.append(self)
 		if game.print_moves:
 			player = game.get_players()[game.player_with_priority]
-			print "> {} {} played a {} on {}." \
+			print "> {} played a {} on {}." \
 				.format(
-					player.__class__.__name__, 
-					game.players.index(player), 
+					player.display_name(game.player_with_priority), 
 					self.__class__.__name__,
 					target_creature.__class__.__name__
 				)

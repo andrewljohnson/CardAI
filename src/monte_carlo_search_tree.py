@@ -8,7 +8,7 @@ from copy import deepcopy
 import itertools, sys
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, hit_points=0, max_moves=1000, simulation_time=2, C=1.4):
+	def __init__(self, hit_points=0, max_moves=300, simulation_time=4, C=1.4):
 		"""
 			Adjust simulation_time and max_moves to taste.
 
@@ -76,6 +76,10 @@ class MonteCarloSearchTreeBot(Bot):
 			sys.stdout.flush()
 			sys.stdout.write('\b')
 			games += 1
+
+		CURSOR_UP_ONE = '\x1b[1A'
+		ERASE_LINE = '\x1b[2K'
+		print ERASE_LINE + CURSOR_UP_ONE
 		
 		moves_states = []
 		for p in legal:
