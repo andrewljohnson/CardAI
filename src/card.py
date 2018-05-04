@@ -947,7 +947,7 @@ class EldraziSpawnToken(Creature):
 	"""
 
 	def total_mana_cost(self):
-		return (0)
+		return (0,)
 
 	def initial_strength(self):
 		return 0

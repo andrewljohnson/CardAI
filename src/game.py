@@ -72,6 +72,7 @@ class Game():
 		[HAND]
 		[LANDS]
 		[CREATURES]
+		____________
 
 		[CREATURES]
 		[LANDS]
@@ -84,13 +85,13 @@ class Game():
 		if self.is_human_playing():
 			top_player = 0
 			bottom_player = 1
-		print ""
 		print "".join(["~" for x in range(0,SCREEN_WIDTH)])
 		self.get_players()[top_player].print_board(self, show_hand=(not self.is_human_playing()))
 		
 		middle_bar_width = SCREEN_WIDTH/3
 		spaces = "".join([" " for x in range(0,(SCREEN_WIDTH-middle_bar_width)/2)])
 		bars = "".join(["_" for x in range(0,middle_bar_width)])
+		print ""
 		print "{}{}".format(spaces, bars)
 		print ""
 		self.get_players()[bottom_player].print_board(self)
