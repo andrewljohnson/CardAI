@@ -416,6 +416,15 @@ class Game():
 
 	def play_move(self, move):
 		"""Play a card based on the move tuple."""
+
+		# lands don't go on stack
+		if move[0].startswith('card'):
+			card_index = move[1]
+			card = self.get_players()[self.player_with_priority].get_hand()[card_index]
+			if card.card_type == 'land':
+				self.play_card_move_from_stack(move)
+				return
+
 		self.stack.append(move)
 		if self.player_with_priority == self.current_turn_player():
 			self.player_with_priority = self.not_current_turn_player()
