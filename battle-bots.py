@@ -6,7 +6,6 @@
 import argparse
 from src.bot import Bot
 from src.human import Human
-from src.monte_carlo import MonteCarloBot
 from src.monte_carlo_search_tree import MonteCarloSearchTreeBot
 from src.game import Game
 
