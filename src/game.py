@@ -76,14 +76,18 @@ class Game():
 		[LANDS]
 		[HAND]
 		20 life - YOU - Mana: []
-
 		'''
-
+		top_player = 1
+		bottom_player = 0
+		
+		if self.is_human_playing():
+			top_player = 0
+			bottom_player = 1
 		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-		self.get_players()[1].print_board(self, show_hand=(not self.is_human_playing()))
+		self.get_players()[top_player].print_board(self, show_hand=(not self.is_human_playing()))
 		print "                         __________________________________                         "
 		print ""
-		self.get_players()[0].print_board(self)
+		self.get_players()[bottom_player].print_board(self)
 		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 		print ""
 

@@ -1,6 +1,7 @@
 """MonteCarloBot plays out N iterations, trying out random move sequences affter legal moves."""
 
 from bot import Bot
+from card import Card
 from game import Game
 
 
@@ -71,8 +72,15 @@ class Human(Bot):
 
 		game.next_state(None, sorted_plays[choice - 1], game=game)
 
-## self.print_board()
 
 	def display_name(self, current_player):
 		return "You"
 
+
+	def print_board(self, game, show_hand=True):
+		if len(game.creatures):
+			Card.print_hand(game.get_creatures(), owner=game.get_players().index(self))
+		if len(game.lands):
+			Card.print_hand(game.get_lands(), owner=game.get_players().index(self))
+		Card.print_hand(self.get_hand(), show_hand=show_hand)
+		print "\n                         {} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(0), self.temp_mana)
