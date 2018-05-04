@@ -62,9 +62,6 @@ class Bot(object):
 
 
 	def print_board(self, game, show_hand=True):
-		self.print_with_direction('ascending', game, show_hand=show_hand)
-
-	def print_with_direction(self, direction, game, show_hand=True):
 		'''	
 		20 life - mcst - Mana: []
 		[HAND]
@@ -79,29 +76,18 @@ class Bot(object):
 		20 life - YOU - Mana: []
 
 		'''
-		if direction == 'ascending':
+		if game.players[0] == self:
 			print "                         {} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(1), self.temp_mana)
 			print ""
-			Card.print_hand(self.hand, show_hand=show_hand)
+			Card.print_hand(self.get_hand(), show_hand=show_hand)
 			if len(game.lands):
-				Card.print_hand(game.lands, owner=game.get_players().index(self))
+				Card.print_hand(game.get_lands(), owner=game.get_players().index(self))
 			if len(game.creatures):
-				Card.print_hand(game.creatures, owner=game.get_players().index(self))
+				Card.print_hand(game.get_creatures(), owner=game.get_players().index(self))
 		else:
 			if len(game.creatures):
-				Card.print_hand(game.creatures, owner=game.get_players().index(self))
+				Card.print_hand(game.get_creatures(), owner=game.get_players().index(self))
 			if len(game.lands):
-				Card.print_hand(game.lands, owner=game.get_players().index(self))
-			Card.print_hand(self.hand, show_hand=show_hand)
+				Card.print_hand(game.get_lands(), owner=game.get_players().index(self))
+			Card.print_hand(self.get_hand(), show_hand=show_hand)
 			print "\n                         {} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(0), self.temp_mana)
-
-def print_hand(cards):
-		images = [c.ascii_image() for c in cards]
-		row_to_print = 0
-		while row_to_print < len(images[0]):
-			for image in images:
-				for char in image[row_to_print]:
-					sys.stdout.write(char) 
-				sys.stdout.write(' ') 
-			print ''
-			row_to_print += 1

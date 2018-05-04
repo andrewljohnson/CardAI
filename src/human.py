@@ -76,6 +76,3 @@ class Human(Bot):
 	def display_name(self, current_player):
 		return "You"
 
-
-	def print_board(self, game, show_hand=True):
-		self.print_with_direction('descending', game, show_hand=show_hand)

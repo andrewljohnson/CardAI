@@ -61,7 +61,7 @@ class Card(object):
 		)
 
 	def ascii_image(self, show_back=False):
-		cols = 12
+		cols = 11
 		rows = 5
 		image_grid = []
 
@@ -108,14 +108,14 @@ class Card(object):
 				for x in range(initial_index, word_width + initial_index):
 					image_grid[name_row][x] = word[x-initial_index]
 				initial_index += word_width + 1
-				if initial_index >= cols - word_width - 2:
+				if initial_index >= cols - word_width - 1:
 					break
 
 		if not show_back:
 			if issubclass(self.__class__, Creature):
 				initial_index = 2
 				stats_row = 3
-				stats_string = "{}/{}".format(self.strength, self.hit_points)
+				stats_string = "{}/{}".format(self.total_damage(), self.total_hit_points())
 				for x in range(initial_index, len(stats_string) + initial_index):
 					image_grid[stats_row][x] = stats_string[x-initial_index]
 
@@ -135,7 +135,7 @@ class Card(object):
 	def print_hand(cards, owner=None, show_hand=True):
 		images = []
 		for c in cards:
-			if owner and c.owner != owner:
+			if owner != None and c.owner != owner:
 				continue
 			images.append(c.ascii_image(show_back=(not show_hand)))
 		if len(images) == 0:
@@ -194,9 +194,10 @@ class Card(object):
 	def action_word(self):
 		return "Use"
 
-	def casting_cost_string(self):
+	def casting_cost_string(self, move=None):
 		casting_cost = ""
-		for c in self.total_mana_cost():
+		cc = move[2] if move else self.total_mana_cost()
+		for c in cc:
 			if type(c) == int:
 				casting_cost += str(c)
 			elif 'L' in c:
@@ -666,19 +667,27 @@ class Creature(Card):
 						self.__class__.__name__
 					)
 
-
-class GreenCreature(Creature):
-
 	def possible_moves(self, game):
 		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
 		available_mana = game.available_mana()
-		has_green = False
+		
+		colored_symbols = []
+		for mana in self.total_mana_cost():
+			if type(mana) != int and 'L' not in mana:
+				colored_symbols.append(mana)
+		
 		total_mana = 0
 		for color, count in available_mana.iteritems():
 			total_mana += count
-			if type(color) != int and 'G' in color:
-				has_green = True
-		if has_green and total_mana >= self.mana_cost():
+		
+		for color, count in available_mana.iteritems():
+			if type(color) != int:
+				if color in colored_symbols:
+					colored_symbols.remove(color)
+					if len(colored_symbols) == 0:
+						break
+
+		if len(colored_symbols) == 0 and total_mana >= self.mana_cost():
 			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
 			return [('card-{}'.format(self.__class__.__name__), 
 				card_index, 
@@ -689,7 +698,7 @@ class GreenCreature(Creature):
 		return []
 
 
-class Bear(GreenCreature):
+class Bear(Creature):
 	"""A 2/2 creature."""
 
 	def initial_strength():
@@ -702,7 +711,7 @@ class Bear(GreenCreature):
 		return ('G', 1)
 
 
-class NettleSentinel(GreenCreature):
+class NettleSentinel(Creature):
 	"""
 		Nettle Sentinel doesn't untap during your untap step.
 		
@@ -730,7 +739,7 @@ class NettleSentinel(GreenCreature):
 		return ['Elf', 'Warrior']
 
 
-class QuirionRanger(GreenCreature):
+class QuirionRanger(Creature):
 	"""
 		Nettle Sentinel doesn't untap during your untap step.
 		
@@ -822,7 +831,7 @@ class QuirionRanger(GreenCreature):
 	def action_word(self):
 		return "Untap"
 
-class BurningTreeEmissary(GreenCreature):
+class BurningTreeEmissary(Creature):
 	"""When Burning-Tree Emissary enters the battlefield, add RedGreen."""
 
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
@@ -868,7 +877,8 @@ class BurningTreeEmissary(GreenCreature):
 	def display_name(self):
 		return "Burning-Tree Emissary"
 
-class SkarrganPitSkulk(GreenCreature):
+
+class SkarrganPitSkulk(Creature):
 	"""
 		Bloodthirst 1 (If an opponent was dealt damage this turn, this creature enters the 
 		battlefield with a +1/+1 counter on it.)
@@ -899,7 +909,7 @@ class SkarrganPitSkulk(GreenCreature):
 		return ['Human', 'Warrior']
 
 
-class NestInvader(GreenCreature):
+class NestInvader(Creature):
 	"""
 		When Nest Invader enters the battlefield, create a 0/1 colorless Eldrazi Spawn creature token. 
 		It has "Sacrifice this creature: Add Colorless."
@@ -999,13 +1009,14 @@ class EldraziSpawnToken(Creature):
 	def action_word(self):
 		return "Sacrifice"
 
-class SilhanaLedgewalker(GreenCreature):
+
+class SilhanaLedgewalker(Creature):
 	"""
 		Hexproof (This creature can't be the target of spells or abilities your opponents control.)
 		Silhana Ledgewalker can't be blocked except by creatures with flying.
 	"""
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
-		super(GreenCreature, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
+		super(SilhanaLedgewalker, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
 		self.hexproof = True
 
 	def total_mana_cost(self):
@@ -1024,19 +1035,19 @@ class SilhanaLedgewalker(GreenCreature):
 		return ['Elf', 'Rogue']
 
 
-class VaultSkirge(GreenCreature):
+class VaultSkirge(Creature):
 	"""
 		(Phyrexian Black can be paid with either Black or 2 life.)
 		Flying
 		Lifelink (Damage dealt by this creature also causes you to gain that much life.)
 	"""
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
-		super(GreenCreature, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
+		super(VaultSkirge, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
 		self.flying = True
 		self.lifelink = True
 
 	def total_mana_cost(self):
-		return ('G', 1)
+		return ('B', 1)
 
 	def initial_strength(self):
 		return 1
@@ -1054,7 +1065,7 @@ class VaultSkirge(GreenCreature):
 		total_mana = 0
 		for color, count in available_mana.iteritems():
 			total_mana += count
-			if type(color) != int and 'G' in color:
+			if type(color) != int and 'B' in color:
 				has_green = True
 		possible_moves = []
 		casting_player = game.get_players()[game.player_with_priority]

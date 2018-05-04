@@ -79,13 +79,13 @@ class Game():
 
 		'''
 
-		print "==========================================================================================="
-		self.get_players()[0].print_board(self, show_hand=show_opponent_hand)
-		print ""
-		print "-------------------------------------------------------------------------------------------"
+		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+		self.get_players()[0].print_board(self, show_hand=(not self.is_human_playing()))
+		print "                         __________________________________                         "
 		print ""
 		self.get_players()[1].print_board(self)
-		print "==========================================================================================="
+		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+		print ""
 
 	def state_repr(self):
 		"""A hashable representation of the game state."""
@@ -392,7 +392,10 @@ class Game():
 
 
 	def available_mana(self):
-		"""Returns a map of color to amount of mana from player_with_priority's untapped lands."""
+		"""
+			Returns a map of color to amount of mana from player_with_priority's untapped lands
+			and mana pool.
+		"""
 		mana = collections.Counter()
 		for land in self.get_lands():
 			if land.owner == self.player_with_priority and not land.tapped:
@@ -433,6 +436,8 @@ class Game():
 			creature.react_to_spell(card)
 		for land in self.get_lands():
 			land.react_to_spell(card)
+		if self.print_moves and not self.is_human_playing():
+			self.print_board();
 
 	def play_ability_move_from_stack(self, move):
 		"""Play an activated based on the move tuple."""
@@ -449,6 +454,8 @@ class Game():
 			creature.react_to_spell(card)
 		for land in self.get_lands():
 			land.react_to_spell(card)
+		if self.print_moves and not self.is_human_playing():
+			self.print_board();
 
 	def play_land_ability_move(self, move):
 		"""Play an activated based on the move tuple."""
@@ -570,31 +577,13 @@ class Game():
 
 	def initial_draw(self, moving_player):
 		"""Add some cards to each player's hand."""
-		if moving_player == 0:
-			if self.print_moves:
-				print "# DRAW STARTING HANDS ####################################"
-
 	 	for i in range(0,7):
 	 		self.draw_card(moving_player);
 		if self.print_moves:
 			current_player = self.get_players()[moving_player]
 			if self.is_human_playing() and current_player.__class__.__name__ != "Human" and self.hide_bot_hand:
 				pass
-				'''	print "> {} drew {} cards." \
-					.format(current_player.display_name(moving_player), 
-							len(current_player.get_hand()),
-							)'''
-
-			else:
-				pass
-				'''
-				hand_strings = [c.display_name() for c in current_player.get_hand()]
-				print "> {} drew {} cards: {}." \
-					.format(current_player.display_name(moving_player), 
-							len(current_player.get_hand()),
-							', '.join(hand_strings), 
-							)	 		
-				'''
+			elif moving_player == 1:
 				self.print_board(show_opponent_hand=False)
 		if self.player_with_priority == self.current_turn_player():
 			self.player_with_priority = self.not_current_turn_player()
@@ -748,6 +737,9 @@ class Game():
 				new_creatures.append(creature)
 		self.creatures = new_creatures
 		self.lazy_creatures = False
+		if self.print_moves and not self.is_human_playing():
+			self.print_board();
+
 
 	def creature_with_id(self, creature_id):
 		"""Return the creature in self.creatures with id equal to creature_id."""
@@ -848,7 +840,7 @@ class Game():
 			if target:
 				target_string += " on {}".format(target.display_name())
 			if mana_to_use:
-				return "({}) {}".format(card.casting_cost_string(), target_string)
+				return "({}) {}".format(card.casting_cost_string(move=move), target_string)
 			else:
 				return target_string
 		elif move[0].startswith('ability'):
