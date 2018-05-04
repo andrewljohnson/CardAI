@@ -7,6 +7,7 @@ from card import Card, Creature, Land
 from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, SkarrganPitSkulk, \
 	SilhanaLedgewalker, VaultSkirge, VinesOfVastwood, Rancor, ElephantGuide, HungerOfTheHowlpack, \
 	NettleSentinel
+from constants import *
 from random import choice
 
 
@@ -83,12 +84,16 @@ class Game():
 		if self.is_human_playing():
 			top_player = 0
 			bottom_player = 1
-		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+		print "".join(["~" for x in range(0,SCREEN_WIDTH)])
 		self.get_players()[top_player].print_board(self, show_hand=(not self.is_human_playing()))
-		print "                         __________________________________                         "
+		
+		middle_bar_width = SCREEN_WIDTH/3
+		spaces = "".join([" " for x in range(0,(SCREEN_WIDTH-middle_bar_width)/2)])
+		bars = "".join(["_" for x in range(0,middle_bar_width)])
+		print "{}{}".format(spaces, bars)
 		print ""
 		self.get_players()[bottom_player].print_board(self)
-		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+		print "".join(["~" for x in range(0,SCREEN_WIDTH)])
 		print ""
 
 	def state_repr(self):

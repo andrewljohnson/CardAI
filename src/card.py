@@ -1,3 +1,4 @@
+from constants import *
 from re import finditer
 import sys
 
@@ -141,7 +142,10 @@ class Card(object):
 		if len(images) == 0:
 			return
 		row_to_print = 0
+		width = SCREEN_WIDTH
 		while row_to_print < len(images[0]):
+			for x in range(0, max(0,(width-len(images)*12)/2)):
+				sys.stdout.write(" ") 
 			for image in images:
 				for char in image[row_to_print]:
 					sys.stdout.write(char) 

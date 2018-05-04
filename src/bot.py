@@ -2,6 +2,7 @@
 
 import json
 from card import Card
+from constants import *
 from random import choice, shuffle
 
 class Bot(object):
@@ -77,8 +78,9 @@ class Bot(object):
 
 		'''
 		if game.players[0] != self:
-			print "                         {} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(1), self.temp_mana)
-			print ""
+			player_str = "{} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(1), self.temp_mana)
+			spaces = "".join([" " for x in range(0,(SCREEN_WIDTH-len(player_str))/2)])
+			print "{}{}".format(spaces, player_str)
 			Card.print_hand(self.get_hand(), show_hand=show_hand)
 			if len(game.lands):
 				Card.print_hand(game.get_lands(), owner=game.get_players().index(self))
@@ -90,4 +92,6 @@ class Bot(object):
 			if len(game.lands):
 				Card.print_hand(game.get_lands(), owner=game.get_players().index(self))
 			Card.print_hand(self.get_hand(), show_hand=show_hand)
-			print "\n                         {} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(0), self.temp_mana)
+			player_str = "{} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(0), self.temp_mana)
+			spaces = "".join([" " for x in range(0,(SCREEN_WIDTH-len(player_str))/2)])
+			print "\n{}{}".format(spaces, player_str)
