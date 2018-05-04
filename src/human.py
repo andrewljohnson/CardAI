@@ -64,9 +64,13 @@ class Human(Bot):
 					return
 				elif not choice and sorted_plays[-1][0] == "pass_the_turn":
 					choice = len(sorted_plays)				
-				choice = int(choice)	
-				if choice >= 1 and choice < len(sorted_plays) + 1:
-					answered = True
+				if choice in [str(x) for x in range(0,len(sorted_plays))]:					
+					choice = int(choice)	
+					if choice >= 1 and choice < len(sorted_plays) + 1:
+						answered = True
+				else:
+					self.play_move(game)
+					return					
 		else:
 			choice = 1
 
