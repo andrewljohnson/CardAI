@@ -76,7 +76,7 @@ class Bot(object):
 		20 life - YOU - Mana: []
 
 		'''
-		if game.players[0] == self:
+		if game.players[0] != self:
 			print "                         {} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(1), self.temp_mana)
 			print ""
 			Card.print_hand(self.get_hand(), show_hand=show_hand)

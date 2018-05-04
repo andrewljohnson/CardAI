@@ -80,10 +80,10 @@ class Game():
 		'''
 
 		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
-		self.get_players()[0].print_board(self, show_hand=(not self.is_human_playing()))
+		self.get_players()[1].print_board(self, show_hand=(not self.is_human_playing()))
 		print "                         __________________________________                         "
 		print ""
-		self.get_players()[1].print_board(self)
+		self.get_players()[0].print_board(self)
 		print "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
 		print ""
 
@@ -436,8 +436,6 @@ class Game():
 			creature.react_to_spell(card)
 		for land in self.get_lands():
 			land.react_to_spell(card)
-		if self.print_moves and not self.is_human_playing():
-			self.print_board();
 
 	def play_ability_move_from_stack(self, move):
 		"""Play an activated based on the move tuple."""
@@ -454,8 +452,6 @@ class Game():
 			creature.react_to_spell(card)
 		for land in self.get_lands():
 			land.react_to_spell(card)
-		if self.print_moves and not self.is_human_playing():
-			self.print_board();
 
 	def play_land_ability_move(self, move):
 		"""Play an activated based on the move tuple."""
@@ -583,15 +579,11 @@ class Game():
 			current_player = self.get_players()[moving_player]
 			if self.is_human_playing() and current_player.__class__.__name__ != "Human" and self.hide_bot_hand:
 				pass
-			elif moving_player == 1:
-				self.print_board(show_opponent_hand=False)
 		if self.player_with_priority == self.current_turn_player():
 			self.player_with_priority = self.not_current_turn_player()
 		else:	
 			self.player_with_priority = self.current_turn_player()
 			self.phase = 'draw'
-			if self.print_moves:
-				print "# TURN 1 ################################################"
 
 	def is_human_playing(self):
 		for p in self.get_players():
@@ -620,15 +612,19 @@ class Game():
 			moving_player, 
 			self.new_card_id
 		)
-
-		current_player.get_hand().append(new_card)
-		self.new_card_id += 1
-
 		if self.phase == "draw":
+			if self.print_moves and not self.is_human_playing():
+				self.print_board();
+			if self.print_moves:
+				print "# TURN {} ################################################".format(self.current_turn + 1)
 			for p in self.get_players():
 				p.temp_mana = []
 			self.phase = "precombat"
 		
+
+		current_player.get_hand().append(new_card)
+		self.new_card_id += 1
+
 		if self.print_moves and self.phase != 'setup':			
 			if self.is_human_playing() and current_player.__class__.__name__ != "Human" and self.hide_bot_hand:
 				print "> {} drew a card." \
@@ -774,8 +770,6 @@ class Game():
 
 		self.damage_to_players = [0, 0]
 		self.phase = "draw"
-		if self.print_moves:
-			print "# TURN {} ###############################################".format(self.current_turn + 1)
 
 	def all_legal_blocks(self):
 		"""
