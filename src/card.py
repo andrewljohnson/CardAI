@@ -1,4 +1,6 @@
 from re import finditer
+import sys
+
 
 """Card encapsulates the actions of a fantasy card."""
 
@@ -58,6 +60,95 @@ class Card(object):
 			self.turn_played, 
 		)
 
+	def ascii_image(self, show_back=False):
+		cols = 12
+		rows = 5
+		image_grid = []
+
+		for x in range(0, rows):
+			image_grid.append([])
+			for y in range(0, cols):
+				if x == 0 or x == rows - 1:
+					image_grid[-1].append('-')
+				elif y == 0 or y == cols - 1:
+					image_grid[-1].append('|')
+				else:
+					image_grid[-1].append(' ')
+
+		initial_index = 2
+
+		if show_back:
+			middle_x = cols / 2
+			middle_y = rows / 2
+
+			noon = (middle_x, middle_y - 1, '*')
+			two = (middle_x + 2, middle_y, '*')
+			ten = (middle_x - 2, middle_y, '*')
+			seven = (middle_x - 1, middle_y + 1, '*')
+			four = (middle_x + 1, middle_y + 1, '*')
+
+			points = [noon, two, four, seven, ten]
+
+			for p in points:
+				image_grid[p[1]][p[0]] = p[2]
+		
+		if not show_back:
+			cc_row = 1
+			cc_string = self.casting_cost_string()
+			for x in range(initial_index, len(cc_string) + initial_index):
+				image_grid[cc_row][x] = cc_string[x-initial_index]
+
+		if not show_back:
+			name_row = 2
+			words = self.display_name().split(" ")
+			for word in words:
+				word_width = min(3, len(word))
+				if len(words) == 1:
+					word_width = min(len(word), cols - 4)
+				for x in range(initial_index, word_width + initial_index):
+					image_grid[name_row][x] = word[x-initial_index]
+				initial_index += word_width + 1
+				if initial_index >= cols - word_width - 2:
+					break
+
+		if not show_back:
+			if issubclass(self.__class__, Creature):
+				initial_index = 2
+				stats_row = 3
+				stats_string = "{}/{}".format(self.strength, self.hit_points)
+				for x in range(initial_index, len(stats_string) + initial_index):
+					image_grid[stats_row][x] = stats_string[x-initial_index]
+
+		if not show_back:
+			if self.tapped:
+				tapped_row = 0
+				initial_index = 0
+				tapped_string = "TAPPED"
+				for x in range(initial_index, len(tapped_string) + initial_index):
+					image_grid[tapped_row][x] = tapped_string[x-initial_index]
+
+
+
+		return image_grid
+
+	@staticmethod
+	def print_hand(cards, owner=None, show_hand=True):
+		images = []
+		for c in cards:
+			if owner and c.owner != owner:
+				continue
+			images.append(c.ascii_image(show_back=(not show_hand)))
+		if len(images) == 0:
+			return
+		row_to_print = 0
+		while row_to_print < len(images[0]):
+			for image in images:
+				for char in image[row_to_print]:
+					sys.stdout.write(char) 
+				sys.stdout.write(' ') 
+			print ''
+			row_to_print += 1
+
 	def adjust_for_untap_phase(self):
 		self.tapped = False
 
@@ -102,6 +193,17 @@ class Card(object):
 
 	def action_word(self):
 		return "Use"
+
+	def casting_cost_string(self):
+		casting_cost = ""
+		for c in self.total_mana_cost():
+			if type(c) == int:
+				casting_cost += str(c)
+			elif 'L' in c:
+				casting_cost += " and {} life".format(c.split('L')[1])
+			elif type(c) == str:
+				casting_cost += c
+		return casting_cost
 
 
 class Land(Card):
@@ -240,6 +342,9 @@ class VinesOfVastwood(Card):
 		super(VinesOfVastwood, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
 		self.card_type = 'instant'
 
+	def total_mana_cost(self):
+		return ('G', )
+
 	def possible_moves(self, game):
 		"""Returns possible VinesOfVastwood targets."""
 		available_mana = game.available_mana()
@@ -291,7 +396,7 @@ class VinesOfVastwood(Card):
 			if mana_to_use == ('G', ):
 				print "> {} played VinesOfVastwood on {}." \
 					.format(
-						caster.get_display_name(game.player_with_priority), 
+						caster.display_name(game.player_with_priority), 
 						creature.__class__.__name__)
 			else:
 				print "> {} played kicked VinesOfVastwood on {}, total power now {}." \
@@ -309,6 +414,9 @@ class HungerOfTheHowlpack(Card):
 	def __init__(self, owner, card_id, tapped=False, turn_played=None):
 		super(HungerOfTheHowlpack, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
 		self.card_type = 'instant'
+
+	def total_mana_cost(self):
+		return ('G', )
 
 	def possible_moves(self, game):
 		"""Returns possible VinesOfVastwood targets."""

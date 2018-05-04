@@ -65,6 +65,28 @@ class Game():
 
 		self.hide_bot_hand = True
 
+	def print_board(self, show_opponent_hand=True):
+		'''	
+		20 life - mcst - Mana: []
+		[HAND]
+		[LANDS]
+		[CREATURES]
+
+		[CREATURES]
+		[LANDS]
+		[HAND]
+		20 life - YOU - Mana: []
+
+		'''
+
+		print "==========================================================================================="
+		self.get_players()[0].print_board(self, show_hand=show_opponent_hand)
+		print ""
+		print "-------------------------------------------------------------------------------------------"
+		print ""
+		self.get_players()[1].print_board(self)
+		print "==========================================================================================="
+
 	def state_repr(self):
 		"""A hashable representation of the game state."""
 		players = self.players if self.lazy_players else [p.state_repr() for p in self.get_players()]
@@ -557,17 +579,23 @@ class Game():
 		if self.print_moves:
 			current_player = self.get_players()[moving_player]
 			if self.is_human_playing() and current_player.__class__.__name__ != "Human" and self.hide_bot_hand:
-				print "> {} drew {} cards." \
+				pass
+				'''	print "> {} drew {} cards." \
 					.format(current_player.display_name(moving_player), 
 							len(current_player.get_hand()),
-							)	 		
+							)'''
+
 			else:
+				pass
+				'''
 				hand_strings = [c.display_name() for c in current_player.get_hand()]
 				print "> {} drew {} cards: {}." \
 					.format(current_player.display_name(moving_player), 
 							len(current_player.get_hand()),
 							', '.join(hand_strings), 
 							)	 		
+				'''
+				self.print_board(show_opponent_hand=False)
 		if self.player_with_priority == self.current_turn_player():
 			self.player_with_priority = self.not_current_turn_player()
 		else:	
@@ -820,15 +848,7 @@ class Game():
 			if target:
 				target_string += " on {}".format(target.display_name())
 			if mana_to_use:
-				casting_cost = ""
-				for c in mana_to_use:
-					if type(c) == int:
-						casting_cost += str(c)
-					elif 'L' in c:
-						casting_cost += " and {} life".format(c.split('L')[1])
-					elif type(c) == str:
-						casting_cost += c
-				return "({}) {}".format(casting_cost, target_string)
+				return "({}) {}".format(card.casting_cost_string(), target_string)
 			else:
 				return target_string
 		elif move[0].startswith('ability'):

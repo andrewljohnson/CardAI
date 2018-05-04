@@ -48,15 +48,20 @@ class Human(Bot):
 		if len(sorted_plays) > 1:
 			for counter, play in enumerate(sorted_plays):
 				if counter == len(sorted_plays) - 1 and play[0] == "pass_the_turn": 
-					print "  Press Enter: {}".format(game.move_display_string(play))
+					print "  return: {}".format(game.move_display_string(play))
 				else:
 					print "  {}: {}".format(counter + 1, game.move_display_string(play))
 
 		if len(sorted_plays) > 1: 
+			print "  p: Print the game board."
 			answered = False
 			while not answered:
 				choice = raw_input("Type the number of the action you want to play: ")
-				if not choice and sorted_plays[-1][0] == "pass_the_turn":
+				if choice == 'p' or choice == 'P':
+					game.print_board(show_opponent_hand=False);
+					self.play_move(game)
+					return
+				elif not choice and sorted_plays[-1][0] == "pass_the_turn":
 					choice = len(sorted_plays)				
 				choice = int(choice)	
 				if choice >= 1 and choice < len(sorted_plays) + 1:
@@ -66,5 +71,11 @@ class Human(Bot):
 
 		game.next_state(None, sorted_plays[choice - 1], game=game)
 
+## self.print_board()
+
 	def display_name(self, current_player):
 		return "You"
+
+
+	def print_board(self, game, show_hand=True):
+		self.print_with_direction('descending', game, show_hand=show_hand)
