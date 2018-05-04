@@ -84,6 +84,7 @@ class Game():
 		if self.is_human_playing():
 			top_player = 0
 			bottom_player = 1
+		print ""
 		print "".join(["~" for x in range(0,SCREEN_WIDTH)])
 		self.get_players()[top_player].print_board(self, show_hand=(not self.is_human_playing()))
 		

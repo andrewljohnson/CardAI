@@ -80,7 +80,7 @@ class Bot(object):
 		if game.players[0] != self:
 			player_str = "{} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(1), self.temp_mana)
 			spaces = "".join([" " for x in range(0,(SCREEN_WIDTH-len(player_str))/2)])
-			print "{}{}".format(spaces, player_str)
+			print "{}{}\n".format(spaces, player_str)
 			Card.print_hand(self.get_hand(), show_hand=show_hand)
 			if len(game.lands):
 				Card.print_hand(game.get_lands(), owner=game.get_players().index(self))
