@@ -16,10 +16,10 @@ def create_parser():
 	parser = argparse.ArgumentParser()
 	parser.add_argument(
 		"--players",
-		default=[2, 3],
+		default=[1, 2],
 		nargs=2,
 		type=int,
-		help="list of 2 players - defaults 2 3 - 0: plays randomly, 1: monte carlo, 2: mcst, 3: Human"
+		help="list of 2 players - defaults 1 2 - 0: plays randomly, 1: mcst, 2: Human"
 	)
 	parser.add_argument(
 		"--starting_hit_points",
@@ -35,7 +35,6 @@ def main():
 	args = create_parser().parse_args()
 	bots_types = [
 		'Bot',
-		'MonteCarloBot',
 		'MonteCarloSearchTreeBot',
 		'Human'
 	]
