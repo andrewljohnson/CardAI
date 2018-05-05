@@ -128,6 +128,8 @@ class MonteCarloSearchTreeBot(Bot):
 			curr_play_num = state[1]
 
 			cached_game = None
+			
+			'''
 			if state in cached_start_games:
 				pass
 				#cached_game = pickle.loads(cached_start_games[state])
@@ -137,15 +139,19 @@ class MonteCarloSearchTreeBot(Bot):
 				#cached_start_games[state] = pickle.dumps(root_game) 
 				#root_game.states = states_copy
 				legal_moves_cache[state], cached_start_games[state] = root_game.legal_plays(states_copy)		
-			
+			'''
+
+			legal_moves_cache[state], cached_start_games[state] = root_game.legal_plays(states_copy)		
+
 			legal = legal_moves_cache[state]			
 			moves_states = []
 
 			for p in legal:
+				'''
 				if (p, state) in cached_end_states:
 					game_state = cached_end_states[(p, state)]
 				else:
-					if (p[1], state) not in plays:
+					if False and (p[1], state) not in plays:
 						move = p
 						game_state = root_game.next_state(state, p)
 						moves_states = [(p, game_state)]
@@ -153,6 +159,8 @@ class MonteCarloSearchTreeBot(Bot):
 						break
 					else:
 						game_state = root_game.next_state(state, p)
+				'''
+				game_state = root_game.next_state(state, p)
 
 				moves_states.append((p, game_state))
 				cached_end_states[(p, state)] = game_state
