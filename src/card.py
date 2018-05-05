@@ -50,6 +50,7 @@ class Card(object):
 
 	@staticmethod
 	def card_for_state(state):
+		return state
 		return Card.class_for_name(state[0])(state[1], state[2], tapped=state[3], turn_played=state[4])
 
 	def state_repr(self):
@@ -60,7 +61,21 @@ class Card(object):
 			self.id, 
 			self.tapped, 
 			self.turn_played, 
+			self.card_type, 
 		)
+
+	@staticmethod
+	def owner(state):
+		return state[1]
+
+	@staticmethod
+	def name(state):
+		return state[0]
+
+	@staticmethod
+	def id(state):
+		return state[2]
+
 
 	def ascii_image(self, show_back=False):
 		cols = 11
@@ -236,6 +251,7 @@ class Land(Card):
 
 	@staticmethod
 	def land_for_state(state):
+		return state
 		classname = state[0]
 		# eval is slow
 		'''
@@ -268,6 +284,7 @@ class Land(Card):
 			self.id, 
 			self.tapped, 
 			self.turn_played, 
+			self.card_type, 
 		)
 
 	def possible_moves(self, game):
@@ -282,6 +299,18 @@ class Land(Card):
 			None,
 			None,
 			game.player_with_priority)]
+
+	@staticmethod
+	def play(state, game, mana_to_use, target_creature_id):
+		"""Remove this from the player's hand and add it to game.lands."""
+		player = game.get_players()[game.player_with_priority]
+		player.get_hand().remove(state)
+
+		state[4] = game.current_turn
+		game.get_lands().append(state)
+		if game.print_moves:
+			print "> {} played a {}." \
+				.format(player.display_name(game.player_with_priority), Card.name(state), Card.owner(state), )
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Remove this from the player's hand and add it to game.lands."""
@@ -316,6 +345,22 @@ class Land(Card):
 				game.player_with_priority
 			)
 		 ]
+
+	@staticmethod
+	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
+		state[3] = True.  #tapped
+		player = game.get_players()[game.player_with_priority]
+		player.temp_mana += list(self.mana_provided_list())
+		if game.print_moves:
+			print "> {} tapped {} for {}, has {} floating." \
+				.format(
+					player.display_name(game.player_with_priority), 
+					self.__class__.__name__, 
+					self.mana_provided_list(),
+					player.temp_mana,
+					game.player_with_priority
+
+				)
 
 	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
 		self.tapped = True
@@ -401,6 +446,33 @@ class VinesOfVastwood(Card):
 
 		return possible_moves
 
+	@staticmethod
+	def play(state, game, mana_to_use, target_creature_id):
+		"""Pump a creature based on how much mana is used."""
+		creature = game.creature_with_id(target_creature_id)
+		if not creature:  # it died
+			if game.print_moves:
+				print "VinesOfVastwood fizzled, no creature with id {}.".format(target_creature_id)
+			return
+		creature.temp_targettable = False
+		caster = game.get_players()[Card.owner(state)]
+		if mana_to_use == ('G', 'G'):
+			creature.temp_strength += 4
+			creature.temp_hit_points += 4
+		caster.get_hand().remove(state)
+		if game.print_moves:
+			if mana_to_use == ('G', ):
+				print "> {} played VinesOfVastwood on {}." \
+					.format(
+						caster.display_name(game.player_with_priority), 
+						creature.__class__.__name__)
+			else:
+				print "> {} played kicked VinesOfVastwood on {}, total power now {}." \
+					.format(
+						caster.display_name(game.player_with_priority), 
+						creature.__class__.__name__,
+						creature.total_damage())
+
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Pump a creature based on how much mana is used."""
 		creature = game.creature_with_id(target_creature_id)
@@ -468,6 +540,32 @@ class HungerOfTheHowlpack(Card):
 
 		return possible_moves
 
+
+	@staticmethod
+	def play(state, game, mana_to_use, target_creature_id):
+		"""Pump a creature based on how much mana is used."""
+		creature = game.creature_with_id(target_creature_id)
+		if creature:
+			creature.strength_counters += 1
+			creature.hit_point_counters += 1
+			if game.creature_died_this_turn:
+				creature.strength_counters += 2
+				creature.hit_point_counters += 2
+		game.get_players()[Card.owner(state)].get_hand().remove(state)
+		if game.print_moves:
+			format_str = None
+			if game.creature_died_this_turn:
+				format_str = "> Player {} played {} on {}, with morbid, total stats now {}/{}.."
+			else:
+				format_str = "> Player {} played {} on {}, total stats now {}/{}."
+			print format_str.format( 
+				Card.owner(state), 
+				Card.name(state),
+				creature.__class__.__name__,
+				creature.total_damage(),
+				creature.total_hit_points(),
+			)
+
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Pump a creature based on how much mana is used."""
 		creature = game.creature_with_id(target_creature_id)
@@ -530,6 +628,45 @@ class Fireball(Card):
 							game.player_with_priority))
 		return possible_moves
 
+
+	@staticmethod
+	def play(state, game, mana_to_use, target_creature_id):
+		"""Decrement hit_points equal to blaster's mana from blastee."""
+		blaster = game.get_players()[game.player_with_priority]
+		blaster.get_hand().remove(state)
+
+		colorless = 0
+		for mana in mana_to_use:
+			if isinstance(mana, int):
+				colorless = mana
+				break
+		if target_creature_id:
+			blaster = game.get_players()[game.player_with_priority]
+			creature = game.creature_with_id(target_creature_id)
+			if (colorless) >= creature.hit_points:
+				if creature.id in game.attackers:
+					game.attackers.remove(creature.id)
+				for e in creature.enchantments:
+					e.on_graveyard(game)
+				creature.on_graveyard(game)
+				game.get_creatures().remove(creature)
+				game.creature_died_this_turn = True
+			else:
+				creature.hit_points -= colorless
+
+			if game.print_moves:
+				print "> {} fireballed {} for {} damage." \
+				.format(blaster.display_name(game.player_with_priority), creature.__class__.__name__, colorless)
+		else:
+			blastee = game.opponent(blaster)
+			blastee.hit_points -= colorless
+			game.damage_to_players[game.players.index(blastee)] += colorless
+
+			if game.print_moves:
+				print "> {} fireballed for {} damage." \
+				.format(blaster.display_name(game.player_with_priority), colorless)
+
+
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Decrement hit_points equal to blaster's mana from blastee."""
 		blaster = game.get_players()[game.player_with_priority]
@@ -590,20 +727,22 @@ class Creature(Card):
 
 	@staticmethod
 	def creature_for_state(state):
+		return state
 		c = Card.class_for_name(state[0])(state[1], state[2], tapped=state[3], turn_played=state[4])
-		c.targettable = state[5]
-		c.temp_strength = state[6]
-		c.temp_hit_points = state[7]
-		c.temp_targettable =state[8]
-		c.activated_ability = state[9]
-		c.activated_ability_type = state[10]
-		c.strength_counters = state[11]
-		c.hit_point_counters = state[12]
-		c.flying = state[13]
-		c.hexproof = state[14]
-		c.lifelink = state[15]
+		c.card_type = state[5]
+		c.targettable = state[6]
+		c.temp_strength = state[7]
+		c.temp_hit_points = state[8]
+		c.temp_targettable =state[9]
+		c.activated_ability = state[10]
+		c.activated_ability_type = state[11]
+		c.strength_counters = state[12]
+		c.hit_point_counters = state[13]
+		c.flying = state[14]
+		c.hexproof = state[15]
+		c.lifelink = state[16]
 
-		for enchantment in state[16]:
+		for enchantment in state[17]:
 			c.enchantments.append(Card.card_for_state(enchantment))
 
 		return c
@@ -615,6 +754,7 @@ class Creature(Card):
 				self.id, 
 				self.tapped, 
 				self.turn_played,
+				self.card_type,
 				self.targettable, 
 				self.temp_strength, 
 				self.temp_hit_points,
@@ -655,6 +795,21 @@ class Creature(Card):
 	def can_attack(self, game):
 		"""Returns False if the creature was summoned this turn."""
 		return self.turn_played < game.current_turn and self.tapped == False
+
+	@staticmethod
+	def play(state, game, mana_to_use, target_creature_id):
+		"""Summon the creature for the player_with_priority."""
+		summoner = game.get_players()[Card.owner(state)]
+		summoner.get_hand().remove(state)
+		game.get_creatures().append(state)
+		state[4] = game.current_turn
+		if game.print_moves:
+			player = game.get_players()[game.player_with_priority]
+			print "> {} summoned a {}." \
+				.format(
+					player.display_name(game.player_with_priority), 
+					Card.name(state)
+				)
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Summon the creature for the player_with_priority."""
@@ -897,6 +1052,12 @@ class BurningTreeEmissary(Creature):
 			game.player_with_priority)]
 		return []
 
+	@staticmethod
+	def play(state, game, mana_to_use, target_creature_id):
+		Creature.play(state, game, mana_to_use, target_creature_id)
+		player = game.get_players()[Card.owner(state)]
+		player.temp_mana += list(('G', 'R'))
+
 	def play(self, game, mana_to_use, target_creature_id):
 		super(BurningTreeEmissary, self).play(game, mana_to_use, target_creature_id)
 		player = game.get_players()[self.owner]
@@ -924,6 +1085,14 @@ class SkarrganPitSkulk(Creature):
 
 	def initial_hit_points(self):
 		return 1
+		Creature.play(state, game, mana_to_use, target_creature_id)
+
+	@staticmethod
+	def play(state, game, mana_to_use, target_creature_id):
+		if game.opponent_was_dealt_damage():
+			state[12] += 1
+			state[13] += 1
+		Creature.play(state, game, mana_to_use, target_creature_id)
 
 	def play(self, game, mana_to_use, target_creature_id):
 		if game.opponent_was_dealt_damage():
@@ -954,6 +1123,15 @@ class NestInvader(Creature):
 
 	def initial_hit_points(self):
 		return 2
+
+	@staticmethod
+	def play(state, game, mana_to_use, target_creature_id):
+		Creature.play(state, game, mana_to_use, target_creature_id)
+		token = EldraziSpawnToken(Card.owner(state), None, tapped=False, turn_played=game.current_turn)
+		token.id = game.new_card_id
+		game.new_card_id += 1
+		game.get_players()[Card.owner(state)].hand.append(token)
+		token.play(game, 0, target_creature_id)
 
 	def play(self, game, mana_to_use, target_creature_id):
 		super(NestInvader, self).play(game, mana_to_use, target_creature_id)
@@ -1162,6 +1340,24 @@ class CreatureEnchantment(Card):
 						None,
 						game.player_with_priority))
 		return possible_moves
+
+	@staticmethod
+	def play(state, game, mana_to_use, target_creature_id):
+		"""Summon the enchantment for the player_with_priority."""
+		summoner = game.get_players()[game.player_with_priority]
+		summoner.get_hand().remove(state)
+		state[4] = game.current_turn
+		target_creature = game.creature_with_id(target_creature_id)
+		if target_creature: # if it didn't die
+			target_creature.enchantments.append(state)
+		if game.print_moves:
+			player = game.get_players()[game.player_with_priority]
+			print "> {} played a {} on {}." \
+				.format(
+					player.display_name(game.player_with_priority), 
+					Card.name(state),
+					target_creature.__class__.__name__
+				)
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Summon the enchantment for the player_with_priority."""

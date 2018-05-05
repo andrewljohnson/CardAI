@@ -46,10 +46,10 @@ class MonteCarloSearchTreeBot(Bot):
 		"""
 		state = root_game.states[-1]
 
-		if state in statcache.bot_stats(root_game.player_with_priority).cached_start_states:
+		if state in statcache.bot_stats(root_game.player_with_priority).cached_start_games and state in statcache.bot_stats(root_game.player_with_priority).legal_moves_cache:
 			legal = statcache.bot_stats(root_game.player_with_priority).legal_moves_cache[state]
 		else:
-			legal = root_game.legal_plays(root_game.states[:])
+			legal, _ = root_game.legal_plays(root_game.states[:])
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
@@ -107,12 +107,12 @@ class MonteCarloSearchTreeBot(Bot):
 	def run_simulation(self, root_game, statcache):
 		# A bit of an optimization here, so we have a local
 		# variable lookup instead of an attribute access each loop.
-		plays, wins, cached_end_states, legal_moves_cache, cached_start_states = \
+		plays, wins, cached_end_states, legal_moves_cache, cached_start_games = \
 			statcache.bot_stats(root_game.player_with_priority).plays, \
 			statcache.bot_stats(root_game.player_with_priority).wins,  \
 			statcache.bot_stats(root_game.player_with_priority).cached_end_states,  \
 			statcache.bot_stats(root_game.player_with_priority).legal_moves_cache,  \
-			statcache.bot_stats(root_game.player_with_priority).cached_start_states
+			statcache.bot_stats(root_game.player_with_priority).cached_start_games, \
 
 		visited_states = set()
 		states_copy = root_game.states[:]
@@ -124,24 +124,32 @@ class MonteCarloSearchTreeBot(Bot):
 			curr_play_num = state[1]
 
 			cached_game = None
-			if state in cached_start_states:
-				cached_game = root_game.game_for_state(state)
-				#cached_game = pickle.loads(cached_start_states[state])
+			if state in cached_start_games:
+				pass 
+				# cached_game = root_game.game_for_state(state)
+				# cached_game = pickle.loads(cached_start_games[state])
+				# cached_game = cached_start_games[state]
 			else:
-				cached_start_states[state] = state
 				#root_game.states = None
-				#cached_start_states[state] = pickle.dumps(root_game) 
+				#cached_start_games[state] = pickle.dumps(root_game) 
 				#root_game.states = states_copy
-				legal_moves_cache[state] = root_game.legal_plays(states_copy)			
-			
-			legal = legal_moves_cache[state]			
+				legal_moves_cache[state], cached_start_games[state] = root_game.legal_plays(states_copy)			
+			if state not in legal_moves_cache:
+				legal_moves_cache[state], _ = root_game.legal_plays(states_copy)		
+		
+			legal = legal_moves_cache[state]
+
 			moves_states = []
 			for p in legal:
 				if (p, state) in cached_end_states:
 					game_state = cached_end_states[(p, state)]
 					_, game = root_game.next_state(state, p, repr_state=False)
 				else: 
-					game_state, game = root_game.next_state(state, p)
+					g = cached_start_games[state] if state in cached_start_games else None
+					game_state, game = root_game.next_state(state, p, game=g)
+					if g:
+						cached_start_games[game_state] = game
+						del cached_start_games[state]
 				moves_states.append((p, game_state, game))
 				cached_end_states[(p, state)] = game_state
 			if all(plays.get((player, S)) for p, S, _ in moves_states):

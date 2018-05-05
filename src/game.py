@@ -8,6 +8,7 @@ from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, Skarrg
 	SilhanaLedgewalker, VaultSkirge, VinesOfVastwood, Rancor, ElephantGuide, HungerOfTheHowlpack, \
 	NettleSentinel
 from constants import *
+import pickle
 from random import choice
 from statcache import StatCache
 
@@ -103,6 +104,7 @@ class Game():
 
 	def state_repr(self):
 		"""A hashable representation of the game state."""
+		#return pickle.dumps(self)
 		players = self.players if self.lazy_players else [p.state_repr() for p in self.get_players()]
 		creatures = self.creatures if self.lazy_creatures else [c.state_repr() for c in self.get_creatures()]
 		lands = self.lands if self.lazy_lands else [l.state_repr() for l in self.get_lands()]
@@ -124,6 +126,9 @@ class Game():
 
 	def game_for_state(self, state, lazy=False):
 		"""Return a Game for a state tuple."""
+		#game = pickle.loads(state)
+		#game.print_moves = False
+		#return game
 		clone_game = Game()
 		clone_game.current_turn = state[0]
 		clone_game.player_with_priority = state[1]
@@ -289,7 +294,6 @@ class Game():
 			clone_game = game
 		else:
 			clone_game = self.game_for_state(state, lazy=True)
-
 		mana_to_use = move[2]
 		if move[0] == 'play_next_on_stack':		
 			clone_game.play_next_on_stack()
@@ -440,8 +444,8 @@ class Game():
 			self.current_spell_move = None
 			# lands don't go on stack
 			card_index = move[1]
-			card = self.get_players()[self.player_with_priority].get_hand()[card_index]
-			if card.card_type == 'land':
+			state = self.get_players()[self.player_with_priority].get_hand()[card_index]
+			if state[5] == 'land':
 				self.play_card_move_from_stack(move)
 				return
 
@@ -464,7 +468,7 @@ class Game():
 		mana_to_use = move[2]
 		card_index = move[1]
 		card = self.get_players()[player_number].get_hand()[card_index]
-		card.play(self, mana_to_use, target_creature)
+		Card.play(card, self, mana_to_use, target_creature)
 		for creature in self.get_creatures():
 			creature.react_to_spell(card)
 		for land in self.get_lands():
@@ -479,7 +483,7 @@ class Game():
 		card_index = move[1]
 		card = self.creature_with_id(move[6][2])
 		card_in_play = self.creature_with_id(target_creature_id)
-		card.activate_ability(self, mana_to_use, target_creature_id, target_land_id, card_in_play)
+		Card.activate_ability(card, self, mana_to_use, target_creature_id, target_land_id, card_in_play)
 		#TODO should this be diff function than in play_card_move?
 		for creature in self.get_creatures():
 			creature.react_to_spell(card)
@@ -521,26 +525,26 @@ class Game():
 			game_state = state_history[-1]
 			game = self.game_for_state(game_state, lazy=True)
 		if game.current_spell_move:
-			return game.card_actions(game, move=game.current_spell_move)
+			return game.card_actions(game, move=game.current_spell_move), game
 		elif len(game.stack) > 0 and game.stack[-1][5] == game.player_with_priority:		
-			return [('play_next_on_stack', game.player_with_priority, 0),]			
+			return [('play_next_on_stack', game.player_with_priority, 0),]	, game		
 		elif len(game.stack) > 0 and game.stack[-1][5] != game.player_with_priority and game.player_with_priority == game.current_turn_player():		
-			return[('pass_priority_as_attacker', game.player_with_priority, 0)]
+			return[('pass_priority_as_attacker', game.player_with_priority, 0)], game
 		elif game.phase == "setup":
-			return [('initial_draw', game.player_with_priority, 0),]			
+			return [('initial_draw', game.player_with_priority, 0),], game			
 		elif game.phase == "draw":
-			return [('draw_card', game.player_with_priority, 0),]			
+			return [('draw_card', game.player_with_priority, 0),]	, game		
 		elif game.phase == "attack_step" and game.player_with_priority == game.current_turn_player():
 			possible_moves = set()
 			possible_moves.add(('no_attack', game.player_with_priority, 0))
-			return list(game.add_attack_actions(game, possible_moves))
+			return list(game.add_attack_actions(game, possible_moves)), game
 		elif game.phase == "declare_blockers":
-			return game.all_legal_blocks()
+			return game.all_legal_blocks(), game
 		elif game.player_with_priority != game.current_turn_player():
 			possible_moves = game.add_instant_creature_abilities(game, set())
 			possible_moves = game.add_land_abilities(game, possible_moves)
 			possible_moves.add(('pass_priority_as_defender', game.player_with_priority, 0))
-			return list(possible_moves)
+			return list(possible_moves), game
 		possible_moves = game.add_cast_actions(game, set())
 		possible_moves = game.add_instant_creature_abilities(game, possible_moves)
 		possible_moves = game.add_land_abilities(game, possible_moves)
@@ -548,12 +552,12 @@ class Game():
 			possible_moves.add(('declare_attack', game.player_with_priority, 0))			
 		elif game.phase == "combat_resolution":
 			possible_moves.add(('resolve_combat', game.player_with_priority, 0),)
-			return list(possible_moves)
+			return list(possible_moves), game
 
 		
 		possible_moves.add(('pass_the_turn', game.player_with_priority, 0))
 			
-		return list(possible_moves)
+		return list(possible_moves), game
 
 	def played_land(self):
 		"""Returns True if the player_with_priority has played a land this turn."""
