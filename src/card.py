@@ -745,8 +745,10 @@ class NettleSentinel(Creature):
 
 	def react_to_spell(self, card):
 		total_mana_cost = card.total_mana_cost()
-		if type(total_mana_cost) == str and 'G' in card.total_mana_cost():
-			self.tapped = False
+		for item in total_mana_cost:
+			if type(item) == str and 'G' in item:
+				self.tapped = False
+				return
 
 	def creature_types(self):
 		return ['Elf', 'Warrior']
