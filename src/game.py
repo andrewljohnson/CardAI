@@ -309,7 +309,11 @@ class Game():
 				clone_game.draw_card(move[1])
 			elif move[0] == 'finish_blocking':
 				clone_game.finish_blocking(move[1])
+			elif move[0] == 'declare_attack':
+				clone_game.declare_attack(move[1])
 			elif move[0] == 'resolve_combat':
+				clone_game.resolve_combat(move[1])
+			elif move[0] == 'no_attack':
 				clone_game.resolve_combat(move[1])
 			elif move[0] == 'pass_the_turn':
 				clone_game.pass_the_turn(move[1])
@@ -520,6 +524,10 @@ class Game():
 			return [('initial_draw', game.player_with_priority, 0),]			
 		elif game.phase == "draw":
 			return [('draw_card', game.player_with_priority, 0),]			
+		elif game.phase == "attack_step" and game.player_with_priority == game.current_turn_player():
+			possible_moves = set()
+			possible_moves.add(('no_attack', game.player_with_priority, 0))
+			return list(game.add_attack_actions(game, possible_moves))
 		elif game.phase == "declare_blockers":
 			return game.all_legal_blocks()
 		elif game.player_with_priority != game.current_turn_player():
@@ -527,12 +535,11 @@ class Game():
 			possible_moves = game.add_land_abilities(game, possible_moves)
 			possible_moves.add(('pass_priority_as_defender', game.player_with_priority, 0))
 			return list(possible_moves)
-		
 		possible_moves = game.add_card_actions(game, set())
 		possible_moves = game.add_instant_creature_abilities(game, possible_moves)
 		possible_moves = game.add_land_abilities(game, possible_moves)
-		if game.phase == "precombat":
-			possible_moves = game.add_attack_actions(game, possible_moves)
+		if game.phase == "precombat" and len(game.add_attack_actions(game, set())) > 0:
+			possible_moves.add(('declare_attack', game.player_with_priority, 0))			
 		elif game.phase == "combat_resolution":
 			possible_moves.add(('resolve_combat', game.player_with_priority, 0),)
 			return list(possible_moves)
@@ -554,7 +561,7 @@ class Game():
 		card_types_added = []
 		for card in game.get_players()[game.player_with_priority].get_hand():
 			if card.__class__ not in card_types_added:
-				if game.phase == 'combat_resolution':
+				if game.phase in ['attack_step', 'combat_resolution']:
 					if card.card_type != 'instant':
 						continue
 				[possible_moves.add(m) for m in card.possible_moves(game)]
@@ -565,7 +572,7 @@ class Game():
 		"""Return a list of possible actions based on the player_with_priority's hand."""
 		for creature in game.get_creatures():
 			if creature.owner == game.player_with_priority:
-				if game.phase == 'combat_resolution':
+				if game.phase in ['attack_step', 'combat_resolution']:
 					if creature.activated_ability_type != 'instant':
 						continue
 				[possible_moves.add(m) for m in creature.possible_ability_moves(game)]
@@ -666,7 +673,8 @@ class Game():
 			attacker.tapped = True
 		if self.print_moves:
 			current_player = self.get_players()[self.player_with_priority]
-			print "> {} announced attack.".format(current_player.display_name(self.player_with_priority))
+			print "> {} declared attackers {}.".format(current_player.display_name(self.player_with_priority),
+				", ".join([self.creature_with_id(cid).display_name() for cid in self.attackers]))
 		self.player_with_priority = self.not_current_turn_player()
 		self.phase = "declare_blockers"
 
@@ -693,6 +701,17 @@ class Game():
 
 		self.phase = 'combat_resolution'
 		self.player_with_priority = self.current_turn_player()
+
+	def declare_attack(self, player_number):
+		"""Shift priority to the defending player and update the phase."""
+		if self.print_moves:
+			current_player = self.get_players()[self.player_with_priority]
+			print "> {} announced attack." \
+				.format(current_player.display_name(self.player_with_priority))
+
+		self.player_with_priority = self.not_current_turn_player()
+
+		self.phase = 'attack_step'
 
 	def resolve_combat(self, player_number):
 		"""Deal damage, remove any dead creatures, check for winners, and go to postcombat phase.""" 
@@ -739,7 +758,9 @@ class Game():
 			dead_names = ", ".join([self.creature_with_id(d).display_name() for d in dead_creatures])
 			if len(dead_creatures) == 0:
 				dead_names = "nothing"
-			if total_attack > 0:
+			if len(self.attackers) == 0:
+				print "No attack, savage feint dude!"
+			elif total_attack > 0:
 				print "> {} attacked for {} (killed: {})." \
 					.format(current_player.display_name(self.player_with_priority),
 							total_attack,
@@ -913,8 +934,12 @@ class Game():
 			# too slow: eval("self.{}".format(move[0]))(move[1])
 			if move_type == 'finish_blocking':
 				return "Finish Blocking"
+			elif move_type == 'declare_attack':
+				return "Declare Attack"
 			elif move_type == 'resolve_combat':
 				return "Resolve Combat"
+			elif move_type == 'no_attack':
+				return "No Attackers"
 			elif move_type == 'pass_the_turn':
 				return "Pass the Turn"
 			elif move_type == 'pass_priority_as_defender' or move_type == 'pass_priority_as_attacker':
@@ -937,9 +962,3 @@ class Game():
 
 
 				return "Assign Blockers {}".format(move)
-
-		state_rep = None
-		if repr_state:
-			state_rep = clone_game.state_repr()
-			clone_game.states.append(state_rep)
-		return state_rep, clone_game
