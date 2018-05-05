@@ -773,6 +773,12 @@ class Game():
 
 					if damage_to_attacker >= attacker.total_hit_points():
 						dead_creatures.append(attacker.id)
+
+					if attacker_strength_to_apportion > 0 and attacker.has_trample():
+						opponent.hit_points -= attacker_strength_to_apportion
+						attacker.did_deal_damage(self)
+						total_attack += attacker.total_damage()
+
 					continue
 
 

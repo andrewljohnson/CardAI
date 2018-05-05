@@ -176,7 +176,7 @@ class Card(object):
 		return colorless
 
 	def possible_moves(self, game):
-		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the card."""
 		available_mana = game.available_mana()
 		total_mana = 0
 		for color, count in available_mana.iteritems():
@@ -655,7 +655,7 @@ class Creature(Card):
 		return self.turn_played < game.current_turn and self.tapped == False
 
 	def play(self, game, mana_to_use, target_creature_id):
-		"""Summon the bear for the player_with_priority."""
+		"""Summon the creature for the player_with_priority."""
 		summoner = game.get_players()[self.owner]
 		summoner.get_hand().remove(self)
 		self.turn_played = game.current_turn
@@ -692,7 +692,7 @@ class Creature(Card):
 					)
 
 	def possible_moves(self, game):
-		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the creature."""
 		available_mana = game.available_mana()
 		
 		colored_symbols = []
@@ -730,17 +730,12 @@ class Creature(Card):
 		return display_name
 
 
-class Bear(Creature):
-	"""A 2/2 creature."""
+	def has_trample(self):
+		for e in self.enchantments:
+			if e.__class__.__name__ == "Rancor":
+				return True
+		return False
 
-	def initial_strength():
-		return 2
-
-	def initial_hit_points():
-		return 2
-
-	def total_mana_cost(self):
-		return ('G', 1)
 
 
 class NettleSentinel(Creature):
@@ -882,7 +877,7 @@ class BurningTreeEmissary(Creature):
 		return 2
 
 	def possible_moves(self, game):
-		"""Returns [] if the player has less than 2 mana, other returns the action to play the bear."""
+		"""Returns [] if the player has less than 2 mana, other returns the action to play the creature."""
 		available_mana = game.available_mana()
 		either_count = 0
 		for color, count in available_mana.iteritems():
@@ -1099,7 +1094,7 @@ class VaultSkirge(Creature):
 		return ['Artifact', 'Imp']
 
 	def possible_moves(self, game):
-		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the Skirge."""
 		available_mana = game.available_mana()
 		has_green = False
 		total_mana = 0
@@ -1142,7 +1137,7 @@ class CreatureEnchantment(Card):
 		return 0
 
 	def possible_moves(self, game):
-		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the enchantment."""
 		available_mana = game.available_mana()
 		has_green = False
 		total_mana = 0
@@ -1167,7 +1162,7 @@ class CreatureEnchantment(Card):
 		return possible_moves
 
 	def play(self, game, mana_to_use, target_creature_id):
-		"""Summon the bear for the player_with_priority."""
+		"""Summon the enchantment for the player_with_priority."""
 		summoner = game.get_players()[game.player_with_priority]
 		summoner.get_hand().remove(self)
 		self.turn_played = game.current_turn
@@ -1201,7 +1196,7 @@ class Rancor(CreatureEnchantment):
 		return 2
 
 	def possible_moves(self, game):
-		"""Returns [] if the player doesn't have enough mana, other returns the action to play the bear."""
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the enchantment."""
 		available_mana = game.available_mana()
 		has_green = False
 		total_mana = 0
