@@ -409,10 +409,11 @@ class VinesOfVastwood(Card):
 				print "VinesOfVastwood fizzled, no creature with id {}.".format(target_creature_id)
 			return
 		creature.temp_targettable = False
-		caster = game.get_players()[game.player_with_priority]
+		caster = game.get_players()[self.owner]
 		if mana_to_use == ('G', 'G'):
 			creature.temp_strength += 4
 			creature.temp_hit_points += 4
+		caster.get_hand().remove(self)
 		if game.print_moves:
 			if mana_to_use == ('G', ):
 				print "> {} played VinesOfVastwood on {}." \
@@ -476,6 +477,7 @@ class HungerOfTheHowlpack(Card):
 			if game.creature_died_this_turn:
 				creature.strength_counters += 2
 				creature.hit_point_counters += 2
+		game.get_players()[self.owner].get_hand().remove(self)
 		if game.print_moves:
 			format_str = None
 			if game.creature_died_this_turn:
