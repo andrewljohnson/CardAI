@@ -736,15 +736,18 @@ class Game():
 
 		self.damage_to_players[self.players.index(opponent)] += total_attack
 		if self.print_moves:
+			dead_names = ", ".join([self.creature_with_id(d).display_name() for d in dead_creatures])
+			if len(dead_creatures) == 0:
+				dead_names = "nothing"
 			if total_attack > 0:
-				print "> {} attacked for {}, {} killed." \
+				print "> {} attacked for {} (killed: {})." \
 					.format(current_player.display_name(self.player_with_priority),
 							total_attack,
-							[d.__class__.__name__ for d in dead_creatures])
+							dead_names)
 			else:
-				print "> {} attacked, {} killed." \
+				print "> {} attacked, (killed: {})" \
 					.format(current_player.display_name(self.player_with_priority), 
-							dead_creatures)
+							dead_names)
 
 		if len(dead_creatures) > 0:
 			self.creature_died_this_turn = True
