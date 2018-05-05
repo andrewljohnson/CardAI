@@ -847,15 +847,23 @@ class Game():
 
 			target_creature_id = move[3]
 			target = self.creature_with_id(target_creature_id)
+			pronoun = "your"
+			if target and target.owner != self.player_with_priority:
+				pronoun = "their"
 			target_string =  "{} {}".format(action_word, card.display_name())
 			if target:
-				target_string += " on {}".format(target.display_name())
+				target_string += " on {} {}".format(pronoun, target.display_name())
 			if mana_to_use:
 				return "({}) {}".format(card.casting_cost_string(move=move), target_string)
 			else:
 				return target_string
 		elif move[0].startswith('ability'):
 			target_creature_id = move[3]
+			target = self.creature_with_id(target_creature_id)
+			pronoun = "your"
+			if target.owner != self.player_with_priority:
+				pronoun = "their"
+
 			acting_creature_state = move[6]
 			card = Creature.creature_for_state(acting_creature_state)
 			card_in_play = self.creature_with_id(target_creature_id)
@@ -866,7 +874,7 @@ class Game():
 			elif card.id == card_in_play.id:
 				action_string = "{} {} with itself".format(card.action_word(), card.display_name())
 			else:
-				action_string = "{} {} with {}".format(card.action_word(), card_in_play.display_name(), card.display_name())
+				action_string = "{} {} {} with {}".format(card.action_word(), pronoun, card_in_play.display_name(), card.display_name())
 
 			target_land_id = move[4]
 			land_to_return = None
