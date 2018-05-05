@@ -9,7 +9,7 @@ from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, Skarrg
 	NettleSentinel
 from constants import *
 from random import choice
-
+from statcache import StatCache
 
 class Game():
 	"""A fantasy card game instance."""
@@ -63,8 +63,6 @@ class Game():
 
 		# a list of previous states the game has been in
 		self.states = [self.state_repr()]
-
-		self.cached_legal_moves = None 
 
 		# whether to print each move, typically False during simulation, but true for a real game
 		self.print_moves = False 
@@ -142,7 +140,7 @@ class Game():
 				player = Bot(hit_points=player_tuple[0], temp_mana=player_tuple[2])
 				for card_tuple in player_tuple[1]:
 					player.hand.append(Card.card_for_state(card_tuple))
-				clone_game.add_player(player)
+				clone_game.players.append(player)
 
 		for creature_tuple in state[5]:
 			if lazy:
@@ -197,13 +195,8 @@ class Game():
 			player.lazy_hand = True
 			for card_tuple in player_tuple[1]:
 				player.hand.append(card_tuple)
-			self.add_player(player)
+			self.players.append(player)
 		return self.players
-
-	def add_player(self, player):
-		"""Add a player to the game and set its game."""
-		self.players.append(player)
-		player.game = self
 
 
 	"""
@@ -214,9 +207,10 @@ class Game():
 
 	def play_out(self):
 		"""Play out a game between two bots."""
+		statcache = StatCache()
 		while not self.game_is_over():
 			player = self.get_players()[self.player_with_priority]
-			move = player.play_move(self)
+			move = player.play_move(self, statcache)
 
 		winner, winning_hp, losing_hp = self.winning_player()
 		if self.print_moves:

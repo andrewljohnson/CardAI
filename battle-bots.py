@@ -40,7 +40,7 @@ def main():
 	game = Game()
 	for pid in args.players:
 		bot = eval("{}".format(bots_types[pid]))(hit_points=args.starting_hit_points)
-		game.add_player(bot)
+		game.players.append(bot)
 	game.print_moves = True
 	game.play_out()
 
