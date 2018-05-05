@@ -313,7 +313,7 @@ class Game():
 			elif move[0] == 'pass_priority_as_attacker':
 				clone_game.pass_priority_as_attacker(move[1])
 			elif move[0] == 'announce_attackers':
-				clone_game.announce_attackers(move[1])
+				clone_game.announce_attackers(list(move[1]))
 			elif move[0] == 'assign_blockers':
 				clone_game.assign_blockers(move[1])
 

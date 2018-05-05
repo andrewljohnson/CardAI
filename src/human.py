@@ -53,8 +53,8 @@ class Human(Bot):
 				else:
 					print "  {}: {}".format(counter + 1, game.move_display_string(play))
 
-		if len(sorted_plays) > 1: 
 			print "  p: Print the game board."
+			
 			answered = False
 			while not answered:
 				choice = raw_input("Type the number of the action you want to play: ")
@@ -62,9 +62,10 @@ class Human(Bot):
 					game.print_board(show_opponent_hand=False);
 					self.play_move(game)
 					return
-				elif not choice and sorted_plays[-1][0] == "pass_the_turn":
+				elif (not choice) and sorted_plays[-1][0] == "pass_the_turn":
 					choice = len(sorted_plays)				
-				if choice in [str(x) for x in range(0,len(sorted_plays))]:					
+					answered = True
+				elif choice in [str(x) for x in range(0,len(sorted_plays)+1)]:					
 					choice = int(choice)	
 					if choice >= 1 and choice < len(sorted_plays) + 1:
 						answered = True

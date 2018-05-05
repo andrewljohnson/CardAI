@@ -8,7 +8,7 @@ from copy import deepcopy
 import itertools, sys
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, hit_points=0, max_moves=300, simulation_time=8, C=1.4):
+	def __init__(self, hit_points=0, max_moves=300, simulation_time=2, C=1.4):
 		"""
 			Adjust simulation_time and max_moves to taste.
 
