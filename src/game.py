@@ -55,6 +55,9 @@ class Game():
 		self.damage_to_players = [0, 0]
 
 		self.stack = []
+		self.stack = []
+
+		self.creature_died_this_turn = False
 
 		# a list of previous states the game has been in
 		self.states = [self.state_repr()]
@@ -115,6 +118,7 @@ class Game():
 				tuple(self.blocks),
 				tuple(self.damage_to_players),
 				tuple(self.stack),
+				self.creature_died_this_turn,
 		)
 
 	def game_for_state(self, state, lazy=False):
@@ -154,6 +158,7 @@ class Game():
 		clone_game.blocks = list(state[9])
 		clone_game.damage_to_players = list(state[10])
 		clone_game.stack = list(state[11])
+		clone_game.creature_died_this_turn = state[12]
 
 		return clone_game
 
@@ -741,6 +746,9 @@ class Game():
 					.format(current_player.display_name(self.player_with_priority), 
 							dead_creatures)
 
+		if len(dead_creatures) > 0:
+			self.creature_died_this_turn = True
+
 		self.attackers = []
 		self.blockers = []
 		self.blocks = []
@@ -787,6 +795,7 @@ class Game():
 					card.adjust_for_untap_phase()
 
 		self.damage_to_players = [0, 0]
+		self.creature_died_this_turn = False
 		self.phase = "draw"
 
 	def all_legal_blocks(self):

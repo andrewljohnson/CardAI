@@ -454,13 +454,15 @@ class HungerOfTheHowlpack(Card):
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Pump a creature based on how much mana is used."""
 		creature = game.creature_with_id(target_creature_id)
-		morbid = False
 		if creature:
 			creature.strength_counters += 1
 			creature.hit_point_counters += 1
+			if game.creature_died_this_turn:
+				creature.strength_counters += 2
+				creature.hit_point_counters += 2
 		if game.print_moves:
 			format_str = None
-			if morbid:
+			if game.creature_died_this_turn:
 				format_str = "> Player {} played {} on {}, with morbid, total stats now {}/{}.."
 			else:
 				format_str = "> Player {} played {} on {}, total stats now {}/{}."
@@ -527,6 +529,7 @@ class Fireball(Card):
 				if creature.id in game.attackers:
 					game.attackers.remove(creature.id)
 				game.get_creatures().remove(creature)
+				game.creature_died_this_turn = True
 			else:
 				creature.hit_points -= colorless
 
@@ -1006,6 +1009,8 @@ class EldraziSpawnToken(Creature):
 		player = game.get_players()[game.player_with_priority]
 		player.temp_mana += [1]
 
+		game.creature_died_this_turn = True
+		
 		if game.print_moves:
 			print "> {} sacrificed {}." \
 				.format(
