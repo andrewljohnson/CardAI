@@ -675,8 +675,9 @@ class Game():
 			current_player = self.get_players()[self.player_with_priority]
 			print "> {} blocked {} with {}." \
 				.format(current_player.display_name(self.player_with_priority), 
-					block_tuple[0], 
-					block_tuple[1])
+					self.creature_with_id(block_tuple[0]).display_name(), 
+					", ".join([self.creature_with_id(cid).display_name() for cid in block_tuple[1]])
+				)
 
 	def finish_blocking(self, player_number):
 		"""Shift priority to the defending player and update the phase."""
@@ -861,7 +862,7 @@ class Game():
 			target_creature_id = move[3]
 			target = self.creature_with_id(target_creature_id)
 			pronoun = "your"
-			if target.owner != self.player_with_priority:
+			if target and target.owner != self.player_with_priority:
 				pronoun = "their"
 
 			acting_creature_state = move[6]
@@ -899,13 +900,13 @@ class Game():
 		else:
 			# too slow: eval("self.{}".format(move[0]))(move[1])
 			if move_type == 'finish_blocking':
-				return "Finish Blocking {}".format(move)
+				return "Finish Blocking"
 			elif move_type == 'resolve_combat':
 				return "Resolve Combat"
 			elif move_type == 'pass_the_turn':
 				return "Pass the Turn"
 			elif move_type == 'pass_priority_as_defender' or move_type == 'pass_priority_as_attacker':
-				return "Pass Priority {}".format(move)
+				return "Pass Priority"
 			elif move_type == 'announce_attackers':
 				attackers = move[1]
 				attacker_names = []
@@ -914,6 +915,15 @@ class Game():
 					attacker_names.append(attacker.display_name())
 				return "Attack with {}".format(", ".join(attacker_names))
 			elif move_type == 'assign_blockers':
+				attacker = move[1][0]
+				blockers = move[1][1]
+				blocker_names = []
+				for creature_id in blockers:
+					blocker = self.creature_with_id(creature_id)
+					blocker_names.append(blocker.display_name())
+				return "Block {} with {}".format(self.creature_with_id(attacker).display_name(), ", ".join(blocker_names))
+
+
 				return "Assign Blockers {}".format(move)
 
 		state_rep = None

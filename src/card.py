@@ -640,12 +640,10 @@ class Creature(Card):
 		game.get_creatures().append(self)
 		if game.print_moves:
 			player = game.get_players()[game.player_with_priority]
-			print "> {} summoned a {}/{} {}." \
+			print "> {} summoned a {}." \
 				.format(
 					player.display_name(game.player_with_priority), 
-					self.total_damage(), 
-					self.total_hit_points(), 
-					self.__class__.__name__
+					self.display_name()
 				)
 
 	def possible_ability_moves(self, game):
@@ -700,6 +698,14 @@ class Creature(Card):
 				None,
 				game.player_with_priority)]
 		return []
+
+
+	def display_name(self, display_stats=True):
+		"""Split the name on uppercase letter and add spaces."""
+		display_name = super(Creature,self).display_name()
+		if display_stats:
+			return "{} ({}/{})".format(display_name, self.total_damage(), self.total_hit_points())
+		return display_name
 
 
 class Bear(Creature):
