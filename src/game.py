@@ -331,7 +331,7 @@ class Game():
 		if repr_state:
 			state_rep = clone_game.state_repr()
 			clone_game.states.append(state_rep)
-		return state_rep, clone_game
+		return state_rep
 
 	def tap_lands_for_mana(self, mana_to_tap):
 		"""Tap land_to_tap lands to pay for a spell or effect."""

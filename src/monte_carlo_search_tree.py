@@ -74,8 +74,8 @@ class MonteCarloSearchTreeBot(Bot):
 		
 		moves_states = []
 		for p in legal:
-			game_state, game = root_game.next_state(state, p)
-			moves_states.append((p, game_state, game))
+			game_state = root_game.next_state(state, p)
+			moves_states.append((p, game_state))
 
 		player = root_game.acting_player(state)
 
@@ -84,7 +84,7 @@ class MonteCarloSearchTreeBot(Bot):
 			(statcache.bot_stats(root_game.player_with_priority).wins.get((player, S), 0) * 1.0 /
 			 statcache.bot_stats(root_game.player_with_priority).plays.get((player, S), 1),
 			 p)
-			for p, S, _ in moves_states
+			for p, S in moves_states
 		)
 
 		if self.show_simulation_results:
@@ -94,7 +94,7 @@ class MonteCarloSearchTreeBot(Bot):
 					statcache.bot_stats(root_game.player_with_priority).plays.get((player, S), 1),
 					statcache.bot_stats(root_game.player_with_priority).wins.get((player, S), 0),
 					statcache.bot_stats(root_game.player_with_priority).plays.get((player, S), 0), p)
-				 for p, S, _ in moves_states),
+				 for p, S in moves_states),
 				reverse=True
 			):
 				print "{3}: {0:.2f}% ({1} / {2})".format(*x)
@@ -139,23 +139,22 @@ class MonteCarloSearchTreeBot(Bot):
 			for p in legal:
 				if (p, state) in cached_end_states:
 					game_state = cached_end_states[(p, state)]
-					_, game = root_game.next_state(state, p, repr_state=False)
 				else: 
-					game_state, game = root_game.next_state(state, p)
-				moves_states.append((p, game_state, game))
+					game_state = root_game.next_state(state, p)
+				moves_states.append((p, game_state))
 				cached_end_states[(p, state)] = game_state
-			if all(plays.get((player, S)) for p, S, _ in moves_states):
+			if all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
 				log_total = log(
-					sum(plays[(player, S)] for p, S, _ in moves_states))
+					sum(plays[(player, S)] for p, S in moves_states))
 				value, move, state = max(
 					((wins[(player, S)] / plays[(player, S)]) +
 					 self.C * sqrt(log_total / plays[(player, S)]), p, S)
-					for p, S, _ in moves_states
+					for p, S in moves_states
 				)
 			else:
 				# Otherwise, just make an arbitrary decision.
-				move, state, game = choice(moves_states)
+				move, state = choice(moves_states)
 
 			states_copy.append(state)
 
