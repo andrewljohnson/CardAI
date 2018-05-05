@@ -807,9 +807,9 @@ class Game():
 
 		for dcid in dead_creatures:
 			dc = self.creature_with_id(dcid)
+			dc.on_graveyard(self)
 			for e in dc.enchantments:
-				if e.__class__.__name__ == "Rancor":
-					self.players[e.owner].get_hand().append(e)
+				e.on_graveyard(self)
 
 		new_creatures = []		
 		for creature in self.get_creatures():

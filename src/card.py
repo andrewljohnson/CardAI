@@ -31,6 +31,7 @@ class Card(object):
 			BurningTreeEmissary,
 			EldraziSpawnToken,
 			ElephantGuide,
+			ElephantToken,
 			Forest,
 			HungerOfTheHowlpack,
 			NestInvader,
@@ -210,7 +211,6 @@ class Card(object):
 				casting_cost += c
 		return casting_cost
 
-
 	def cast_moves(self, game, card_index):
 		if len(self.possible_moves(game)) > 0:
 			return [('card-cast-{}'.format(
@@ -221,6 +221,10 @@ class Card(object):
 				None,
 				game.player_with_priority)]
 		return []
+
+	def on_graveyard(self, game):
+		"""Only affects a few cards."""
+		pass
 
 
 class Land(Card):
@@ -541,8 +545,8 @@ class Fireball(Card):
 				if creature.id in game.attackers:
 					game.attackers.remove(creature.id)
 				for e in creature.enchantments:
-					if e.__class__.__name__ == "Rancor":
-						game.players[e.owner].get_hand().append(e)
+					e.on_graveyard(game)
+				creature.on_graveyard(game)
 				game.get_creatures().remove(creature)
 				game.creature_died_this_turn = True
 			else:
@@ -652,7 +656,7 @@ class Creature(Card):
 
 	def play(self, game, mana_to_use, target_creature_id):
 		"""Summon the bear for the player_with_priority."""
-		summoner = game.get_players()[game.player_with_priority]
+		summoner = game.get_players()[self.owner]
 		summoner.get_hand().remove(self)
 		self.turn_played = game.current_turn
 		game.get_creatures().append(self)
@@ -1027,6 +1031,10 @@ class EldraziSpawnToken(Creature):
 		player.temp_mana += [1]
 
 		game.creature_died_this_turn = True
+
+		self.on_graveyard(game)
+		for e in self.enchantments:
+			e.on_graveyard(game)
 		
 		if game.print_moves:
 			print "> {} sacrificed {}." \
@@ -1216,6 +1224,9 @@ class Rancor(CreatureEnchantment):
 						game.player_with_priority))
 		return possible_moves
 
+	def on_graveyard(self, game):
+		game.players[self.owner].get_hand().append(self)
+
 
 class ElephantGuide(CreatureEnchantment):
 	"""
@@ -1234,3 +1245,28 @@ class ElephantGuide(CreatureEnchantment):
 
 	def defense_bonus(self):
 		return 3
+
+	def on_graveyard(self, game):
+		token = ElephantToken(self.owner, None, tapped=False, turn_played=game.current_turn)
+		token.id = game.new_card_id
+		game.new_card_id += 1
+		game.get_players()[self.owner].get_hand().append(token)
+		token.play(game, 0, None)
+
+
+class ElephantToken(Creature):
+	"""
+		An 3/3 green Elephant Spawn creature token. 
+	"""
+
+	def total_mana_cost(self):
+		return (0,)
+
+	def initial_strength(self):
+		return 3
+
+	def initial_hit_points(self):
+		return 3
+
+	def creature_types(self):
+		return ['Elephant', 'Token']
