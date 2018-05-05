@@ -21,6 +21,7 @@ class MonteCarloSearchTreeBot(Bot):
 
 		# the amount of time to call run_simulation as much as possible 		
 		self.calculation_time = datetime.timedelta(seconds=simulation_time)
+		self.simulation_time = simulation_time
 
 		# the max_moves for any simulation
 		self.max_moves = max_moves
@@ -67,6 +68,9 @@ class MonteCarloSearchTreeBot(Bot):
 			sys.stdout.flush()
 			sys.stdout.write('\b')
 			games += 1
+
+		print "SIMULATED {} games/s".format(games*1.0/self.simulation_time)
+
 
 		CURSOR_UP_ONE = '\x1b[1A'
 		ERASE_LINE = '\x1b[2K'
@@ -136,13 +140,23 @@ class MonteCarloSearchTreeBot(Bot):
 			
 			legal = legal_moves_cache[state]			
 			moves_states = []
+
 			for p in legal:
 				if (p, state) in cached_end_states:
 					game_state = cached_end_states[(p, state)]
-				else: 
-					game_state = root_game.next_state(state, p)
+				else:
+					if (p[1], state) not in plays:
+						move = p
+						game_state = root_game.next_state(state, p)
+						moves_states = [(p, game_state)]
+						cached_end_states[(p, state)] = game_state
+						break
+					else:
+						game_state = root_game.next_state(state, p)
+
 				moves_states.append((p, game_state))
 				cached_end_states[(p, state)] = game_state
+			
 			if all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
 				log_total = log(
