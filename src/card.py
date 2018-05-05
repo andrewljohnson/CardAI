@@ -211,6 +211,18 @@ class Card(object):
 		return casting_cost
 
 
+	def cast_moves(self, game, card_index):
+		if len(self.possible_moves(game)) > 0:
+			return [('card-cast-{}'.format(
+				self.__class__.__name__), 
+				card_index, 
+				(), 
+				None,
+				None,
+				game.player_with_priority)]
+		return []
+
+
 class Land(Card):
 	"""A card that produces any color mana."""
 

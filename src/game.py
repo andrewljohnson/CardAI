@@ -59,6 +59,8 @@ class Game():
 
 		self.creature_died_this_turn = False
 
+		self.current_spell_move = None
+
 		# a list of previous states the game has been in
 		self.states = [self.state_repr()]
 
@@ -119,6 +121,7 @@ class Game():
 				tuple(self.damage_to_players),
 				tuple(self.stack),
 				self.creature_died_this_turn,
+				self.current_spell_move
 		)
 
 	def game_for_state(self, state, lazy=False):
@@ -159,6 +162,7 @@ class Game():
 		clone_game.damage_to_players = list(state[10])
 		clone_game.stack = list(state[11])
 		clone_game.creature_died_this_turn = state[12]
+		clone_game.current_spell_move = state[13]
 
 		return clone_game
 
@@ -295,6 +299,9 @@ class Game():
 		mana_to_use = move[2]
 		if move[0] == 'play_next_on_stack':		
 			clone_game.play_next_on_stack()
+		elif move[0].startswith('card-cast'):
+			# after this choose how to cast the chosen spell
+			clone_game.play_move(move)
 		elif move[0].startswith('card') or move[0].startswith('ability'):
 			clone_game.tap_lands_for_mana(mana_to_use)
 			clone_game.play_move(move)
@@ -432,9 +439,12 @@ class Game():
 
 	def play_move(self, move):
 		"""Play a card based on the move tuple."""
-
-		# lands don't go on stack
-		if move[0].startswith('card'):
+		if move[0].startswith('card-cast'):
+			self.current_spell_move = move
+			return
+		elif move[0].startswith('card'):
+			self.current_spell_move = None
+			# lands don't go on stack
 			card_index = move[1]
 			card = self.get_players()[self.player_with_priority].get_hand()[card_index]
 			if card.card_type == 'land':
@@ -516,7 +526,9 @@ class Game():
 		else:
 			game_state = state_history[-1]
 			game = self.game_for_state(game_state, lazy=True)
-		if len(game.stack) > 0 and game.stack[-1][5] == game.player_with_priority:		
+		if game.current_spell_move:
+			return game.card_actions(game, move=game.current_spell_move)
+		elif len(game.stack) > 0 and game.stack[-1][5] == game.player_with_priority:		
 			return [('play_next_on_stack', game.player_with_priority, 0),]			
 		elif len(game.stack) > 0 and game.stack[-1][5] != game.player_with_priority and game.player_with_priority == game.current_turn_player():		
 			return[('pass_priority_as_attacker', game.player_with_priority, 0)]
@@ -535,7 +547,7 @@ class Game():
 			possible_moves = game.add_land_abilities(game, possible_moves)
 			possible_moves.add(('pass_priority_as_defender', game.player_with_priority, 0))
 			return list(possible_moves)
-		possible_moves = game.add_card_actions(game, set())
+		possible_moves = game.add_cast_actions(game, set())
 		possible_moves = game.add_instant_creature_abilities(game, possible_moves)
 		possible_moves = game.add_land_abilities(game, possible_moves)
 		if game.phase == "precombat" and len(game.add_attack_actions(game, set())) > 0:
@@ -556,17 +568,33 @@ class Game():
 				return True
 		return False
 
-	def add_card_actions(self, game, possible_moves):
-		"""Return a list of possible actions based on the player_with_priority's hand."""
+	def add_cast_actions(self, game, possible_moves):
+		"""Return a list of possible cast actions based on the player_with_priority's hand."""
 		card_types_added = []
-		for card in game.get_players()[game.player_with_priority].get_hand():
+		hand = game.get_players()[game.player_with_priority].get_hand()
+		for card in hand:
 			if card.__class__ not in card_types_added:
 				if game.phase in ['attack_step', 'combat_resolution']:
 					if card.card_type != 'instant':
 						continue
-				[possible_moves.add(m) for m in card.possible_moves(game)]
-				card_types_added.append(card.__class__)
+				cast_moves = card.cast_moves(game, hand.index(card))
+				if len(cast_moves) > 0:
+					actions = game.card_actions(game, move=cast_moves[0])
+					if len(actions) == 1:
+						possible_moves.add(actions[0])				
+					else:
+						[possible_moves.add(m) for m in card.cast_moves(game, hand.index(card))]
+					card_types_added.append(card.__class__)
 		return possible_moves
+
+
+	def card_actions(self, game, move=None):
+		"""Return a list of possible actions based on the player_with_priority's hand."""
+		possible_moves = set()
+		card_index = move[1]
+		card = game.get_players()[game.player_with_priority].get_hand()[card_index]
+		[possible_moves.add(m) for m in card.possible_moves(game)]
+		return list(possible_moves)
 
 	def add_instant_creature_abilities(self, game, possible_moves):
 		"""Return a list of possible actions based on the player_with_priority's hand."""
