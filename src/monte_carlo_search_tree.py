@@ -46,10 +46,10 @@ class MonteCarloSearchTreeBot(Bot):
 		"""
 		state = root_game.states[-1]
 
-		if state in statcache.bot_stats(root_game.player_with_priority).cached_start_states:
+		if state in statcache.bot_stats(root_game.player_with_priority).cached_start_games:
 			legal = statcache.bot_stats(root_game.player_with_priority).legal_moves_cache[state]
 		else:
-			legal = root_game.legal_plays(root_game.states[:])
+			legal, _ = root_game.legal_plays(root_game.states[:])
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
@@ -107,12 +107,12 @@ class MonteCarloSearchTreeBot(Bot):
 	def run_simulation(self, root_game, statcache):
 		# A bit of an optimization here, so we have a local
 		# variable lookup instead of an attribute access each loop.
-		plays, wins, cached_end_states, legal_moves_cache, cached_start_states = \
+		plays, wins, cached_end_states, legal_moves_cache, cached_start_games = \
 			statcache.bot_stats(root_game.player_with_priority).plays, \
 			statcache.bot_stats(root_game.player_with_priority).wins,  \
 			statcache.bot_stats(root_game.player_with_priority).cached_end_states,  \
 			statcache.bot_stats(root_game.player_with_priority).legal_moves_cache,  \
-			statcache.bot_stats(root_game.player_with_priority).cached_start_states
+			statcache.bot_stats(root_game.player_with_priority).cached_start_games
 
 		visited_states = set()
 		states_copy = root_game.states[:]
@@ -124,15 +124,15 @@ class MonteCarloSearchTreeBot(Bot):
 			curr_play_num = state[1]
 
 			cached_game = None
-			if state in cached_start_states:
-				cached_game = root_game.game_for_state(state)
-				#cached_game = pickle.loads(cached_start_states[state])
+			if state in cached_start_games:
+				pass
+				#cached_game = pickle.loads(cached_start_games[state])
 			else:
-				cached_start_states[state] = state
+				cached_start_games[state] = state
 				#root_game.states = None
-				#cached_start_states[state] = pickle.dumps(root_game) 
+				#cached_start_games[state] = pickle.dumps(root_game) 
 				#root_game.states = states_copy
-				legal_moves_cache[state] = root_game.legal_plays(states_copy)			
+				legal_moves_cache[state], cached_start_games[state] = root_game.legal_plays(states_copy)		
 			
 			legal = legal_moves_cache[state]			
 			moves_states = []
