@@ -540,6 +540,9 @@ class Fireball(Card):
 			if (colorless) >= creature.hit_points:
 				if creature.id in game.attackers:
 					game.attackers.remove(creature.id)
+				for e in creature.enchantments:
+					if e.__class__.__name__ == "Rancor":
+						game.players[e.owner].get_hand().append(e)
 				game.get_creatures().remove(creature)
 				game.creature_died_this_turn = True
 			else:
