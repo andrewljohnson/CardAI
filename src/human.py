@@ -53,7 +53,7 @@ class Human(Bot):
 				else:
 					print "  {}: {}".format(counter + 1, game.move_display_string(play))
 
-			print "  p: Print the game board."
+			print "  p: Print your hand and the game board."
 			
 			answered = False
 			while not answered:

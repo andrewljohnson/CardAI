@@ -595,10 +595,6 @@ class Game():
 		"""Add some cards to each player's hand."""
 	 	for i in range(0,7):
 	 		self.draw_card(moving_player);
-		if self.print_moves:
-			current_player = self.get_players()[moving_player]
-			if self.is_human_playing() and current_player.__class__.__name__ != "Human" and self.hide_bot_hand:
-				pass
 		if self.player_with_priority == self.current_turn_player():
 			self.player_with_priority = self.not_current_turn_player()
 		else:	
@@ -632,8 +628,13 @@ class Game():
 			moving_player, 
 			self.new_card_id
 		)
+		current_player.get_hand().append(new_card)
+		self.new_card_id += 1
+
 		if self.phase == "draw":
 			if self.print_moves and not self.is_human_playing():
+				self.print_board();
+			elif current_player.__class__.__name__ == "Human":
 				self.print_board();
 			if self.print_moves:
 				print "# TURN {} ################################################".format(self.current_turn + 1)
@@ -641,10 +642,6 @@ class Game():
 				p.temp_mana = []
 			self.phase = "precombat"
 		
-
-		current_player.get_hand().append(new_card)
-		self.new_card_id += 1
-
 		if self.print_moves and self.phase != 'setup':			
 			if self.is_human_playing() and current_player.__class__.__name__ != "Human" and self.hide_bot_hand:
 				print "> {} drew a card." \
