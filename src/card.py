@@ -775,7 +775,7 @@ class QuirionRanger(Creature):
 
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
 		super(QuirionRanger, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
-		self.activated = False
+		self.activated_ability = False
 
 	def total_mana_cost(self):
 		return ('G', )

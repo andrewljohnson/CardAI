@@ -483,7 +483,7 @@ class Game():
 		target_land_id = move[4]
 		mana_to_use = move[2]
 		card_index = move[1]
-		card = Creature.creature_for_state(move[6])
+		card = self.creature_with_id(move[6][2])
 		card_in_play = self.creature_with_id(target_creature_id)
 		card.activate_ability(self, mana_to_use, target_creature_id, target_land_id, card_in_play)
 		#TODO should this be diff function than in play_card_move?
