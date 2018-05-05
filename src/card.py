@@ -764,7 +764,7 @@ class QuirionRanger(Creature):
 		return 1
 
 	def possible_ability_moves(self, game):
-		if self.activated_ability or self.turn_played == game.current_turn:
+		if self.activated_ability:
 			return []
 		untapped_forest = None
 		tapped_forest = None
