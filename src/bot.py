@@ -38,7 +38,7 @@ class Bot(object):
 		"""Return a hashable tuple representing the Bot."""
 		return (
 			self.hit_points, 
-			tuple([c.state_repr() for c in self.get_hand()]),
+			tuple([c for c in self.get_hand()]),
 			tuple(self.temp_mana)
 		)
 
