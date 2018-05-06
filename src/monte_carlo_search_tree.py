@@ -47,7 +47,7 @@ class MonteCarloSearchTreeBot(Bot):
 		"""
 		state = root_game.states[-1]
 
-		legal = root_game.legal_plays(root_game.states[:])
+		legal = root_game.legal_plays(root_game.states[-1])
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
@@ -114,15 +114,14 @@ class MonteCarloSearchTreeBot(Bot):
 			statcache.bot_stats(root_game.player_with_priority).legal_moves_cache
 
 		visited_states = set()
-		states_copy = root_game.states[:]
-		state = states_copy[-1]
+		state = root_game.states[-1]
 		player = root_game.acting_player(state)
 
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
 
 			if state not in legal_moves_cache:
-				legal_moves_cache[state] = root_game.legal_plays(states_copy)		
+				legal_moves_cache[state] = root_game.legal_plays(state)		
 			legal = legal_moves_cache[state]			
 
 			moves_states = []
@@ -153,8 +152,6 @@ class MonteCarloSearchTreeBot(Bot):
 			else:
 				# Otherwise, just make an arbitrary decision.
 				move, state, ended_game = choice(moves_states)
-
-			states_copy.append(state)
 
 			# `player` here and below refers to the player
 			# who moved into that particular state.

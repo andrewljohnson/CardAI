@@ -477,17 +477,12 @@ class Game():
 			if p != player:
 				return p
 
-	def legal_plays(self, state_history, cached_game=None):
-		"""
-			Return a list of all legal moves given the state_history. 
-		
-			We only use the most recent state in state_history for now.
-		"""
+	def legal_plays(self, game_state, cached_game=None):
+		"""Return a list of all legal moves given the last state."""
 		
 		if cached_game:
 			game = cached_game
 		else:
-			game_state = state_history[-1]
 			game = self.game_for_state(game_state)
 		if game.current_spell_move:
 			return game.card_actions(game, move=game.current_spell_move)
