@@ -42,7 +42,6 @@ def main():
 		bot = eval("{}".format(bots_types[pid]))(hit_points=args.starting_hit_points)
 		game.players.append(bot)
 	game.print_moves = True
-	game.states.append(game.state_repr())
 	game.play_out()
 
 

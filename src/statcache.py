@@ -1,6 +1,7 @@
 class StatCache(object):
 	def __init__(self):
 		self.bot_to_stats = {}
+		self.past_states = []
 
 	def bot_stats(self, bot_id):
 		if bot_id not in self.bot_to_stats:

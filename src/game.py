@@ -58,9 +58,6 @@ class Game():
 
 		self.current_spell_move = None
 
-		# a list of previous states the game has been in
-		self.states = [self.state_repr()]
-
 		# whether to print each move, typically False during simulation, but true for a real game
 		self.print_moves = False 
 
@@ -172,6 +169,7 @@ class Game():
 	def play_out(self):
 		"""Play out a game between two bots."""
 		statcache = StatCache()
+		statcache.past_states.append(self.state_repr())
 		while not self.game_is_over():
 			player = self.get_players()[self.player_with_priority]
 			move = player.play_move(self, statcache)
@@ -288,9 +286,7 @@ class Game():
 			elif move[0] == 'assign_blockers':
 				clone_game.assign_blockers(move[1])
 
-		state_rep = clone_game.state_repr()
-		clone_game.states.append(state_rep)
-		return state_rep, clone_game
+		return clone_game.state_repr(), clone_game
 
 	def tap_lands_for_mana(self, mana_to_tap):
 		"""Tap land_to_tap lands to pay for a spell or effect."""

@@ -36,7 +36,8 @@ class MonteCarloSearchTreeBot(Bot):
 	def play_move(self, game, statcache):
 		"""Play a move in game."""
 		move = self.get_play(game, statcache)
-		game.next_state(None, move, game=game)
+		state, game = game.next_state(None, move, game=game)
+		statcache.past_states.append(state)
 		return move
 
 	def get_play(self, root_game, statcache):
@@ -45,9 +46,9 @@ class MonteCarloSearchTreeBot(Bot):
 
 			after simulating possible plays and updating plays and wins stats.
 		"""
-		state = root_game.states[-1]
+		state = statcache.past_states[-1]
 
-		legal = root_game.legal_plays(root_game.states[-1])
+		legal = root_game.legal_plays(state)
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
@@ -114,7 +115,7 @@ class MonteCarloSearchTreeBot(Bot):
 			statcache.bot_stats(root_game.player_with_priority).legal_moves_cache
 
 		visited_states = set()
-		state = root_game.states[-1]
+		state = statcache.past_states[-1]
 		player = root_game.acting_player(state)
 
 		expand = True
