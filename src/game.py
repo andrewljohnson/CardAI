@@ -283,7 +283,7 @@ class Game():
 		"""Return the player_number of the player due to make move in state."""
 		return state[1]
 
-	def next_state(self, state, move, game=None, repr_state=True):
+	def next_state(self, state, move, game=None):
 		"""Return a new state after applying the move to state."""
 		if game:
 			clone_game = game
@@ -327,10 +327,8 @@ class Game():
 			elif move[0] == 'assign_blockers':
 				clone_game.assign_blockers(move[1])
 
-		state_rep = None
-		if repr_state:
-			state_rep = clone_game.state_repr()
-			clone_game.states.append(state_rep)
+		state_rep = clone_game.state_repr()
+		clone_game.states.append(state_rep)
 		return state_rep
 
 	def tap_lands_for_mana(self, mana_to_tap):
@@ -521,26 +519,26 @@ class Game():
 			game_state = state_history[-1]
 			game = self.game_for_state(game_state, lazy=True)
 		if game.current_spell_move:
-			return game.card_actions(game, move=game.current_spell_move), game
+			return game.card_actions(game, move=game.current_spell_move)
 		elif len(game.stack) > 0 and game.stack[-1][5] == game.player_with_priority:		
-			return [('play_next_on_stack', game.player_with_priority, 0),]	, game		
+			return [('play_next_on_stack', game.player_with_priority, 0),]		
 		elif len(game.stack) > 0 and game.stack[-1][5] != game.player_with_priority and game.player_with_priority == game.current_turn_player():		
-			return[('pass_priority_as_attacker', game.player_with_priority, 0)], game
+			return[('pass_priority_as_attacker', game.player_with_priority, 0)]
 		elif game.phase == "setup":
-			return [('initial_draw', game.player_with_priority, 0),]	, game		
+			return [('initial_draw', game.player_with_priority, 0),]	
 		elif game.phase == "draw":
-			return [('draw_card', game.player_with_priority, 0),], game			
+			return [('draw_card', game.player_with_priority, 0),]			
 		elif game.phase == "attack_step" and game.player_with_priority == game.current_turn_player():
 			possible_moves = set()
 			possible_moves.add(('no_attack', game.player_with_priority, 0))
-			return list(game.add_attack_actions(game, possible_moves)), game
+			return list(game.add_attack_actions(game, possible_moves))
 		elif game.phase == "declare_blockers":
-			return game.all_legal_blocks(), game
+			return game.all_legal_blocks()
 		elif game.player_with_priority != game.current_turn_player():
 			possible_moves = game.add_instant_creature_abilities(game, set())
 			possible_moves = game.add_land_abilities(game, possible_moves)
 			possible_moves.add(('pass_priority_as_defender', game.player_with_priority, 0))
-			return list(possible_moves), game
+			return list(possible_moves)
 		possible_moves = game.add_cast_actions(game, set())
 		possible_moves = game.add_instant_creature_abilities(game, possible_moves)
 		possible_moves = game.add_land_abilities(game, possible_moves)
@@ -548,12 +546,12 @@ class Game():
 			possible_moves.add(('declare_attack', game.player_with_priority, 0))			
 		elif game.phase == "combat_resolution":
 			possible_moves.add(('resolve_combat', game.player_with_priority, 0),)
-			return list(possible_moves), game
+			return list(possible_moves)
 
 		
 		possible_moves.add(('pass_the_turn', game.player_with_priority, 0))
 			
-		return list(possible_moves), game
+		return list(possible_moves)
 
 	def played_land(self):
 		"""Returns True if the player_with_priority has played a land this turn."""

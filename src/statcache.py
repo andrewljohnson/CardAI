@@ -13,6 +13,4 @@ class BotStats(object):
 		# statistics about previously simulated game states
 		self.wins = {}
 		self.plays = {}
-		self.cached_end_states = {}
 		self.legal_moves_cache = {}
-		self.cached_start_games = {}
