@@ -136,6 +136,7 @@ class Card(object):
 				'NestInvader',
 				'VaultSkirge',
 				'ElephantToken',
+				'BurningTreeEmissary',
 				'EldraziSpawnToken',
 			]:
 				initial_index = 2

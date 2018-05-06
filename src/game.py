@@ -541,6 +541,10 @@ class Game():
 		for land_state in self.get_lands():
 			if Card.owner(land_state) == self.player_with_priority and Card.turn_played(land_state) == self.current_turn:
 				return True
+
+		for card_state in self.players[self.player_with_priority].get_hand():
+			if Card.turn_played(card_state) == self.current_turn and Card.card_type(card_state) == 'land':
+				return True
 		return False
 
 	def add_cast_actions(self, game, possible_moves):
