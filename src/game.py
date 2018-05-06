@@ -286,7 +286,7 @@ class Game():
 			elif move[0] == 'assign_blockers':
 				clone_game.assign_blockers(move[1])
 
-		return clone_game.state_repr(), clone_game
+		return clone_game
 
 	def tap_lands_for_mana(self, mana_to_tap):
 		"""Tap land_to_tap lands to pay for a spell or effect."""
