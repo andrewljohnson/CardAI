@@ -187,24 +187,22 @@ class Game():
 							losing_hp)
 		return winner
 
-	def winner(self, state_history):
+	def winner(self):
 		"""
 			Return -1 if the state_history is drawn, 0 if the game is ongoing, 
 		
 			else the player_number of the winner.
 		"""
-		current_state = state_history[-1]
-		clone_game = self.game_for_state(current_state)
 
-		if clone_game.game_is_drawn():
+		if self.game_is_drawn():
 			return -2
 
-		if len(clone_game.dead_players()) == 0:
+		if len(self.dead_players()) == 0:
 			return -1
 
-		winning_player, _, _ = clone_game.winning_player()
+		winning_player, _, _ = self.winning_player()
 
-		return clone_game.players.index(winning_player)
+		return self.players.index(winning_player)
 
 	def winning_player(self):
 		"""
@@ -292,7 +290,7 @@ class Game():
 
 		state_rep = clone_game.state_repr()
 		clone_game.states.append(state_rep)
-		return state_rep
+		return state_rep, clone_game
 
 	def tap_lands_for_mana(self, mana_to_tap):
 		"""Tap land_to_tap lands to pay for a spell or effect."""

@@ -130,27 +130,27 @@ class MonteCarloSearchTreeBot(Bot):
 			
 			for p in legal:
 				if (p[1], state) in plays:
-					game_state = root_game.next_state(state, p)
-					moves_states.append((p, game_state))
+					game_state, ended_game = root_game.next_state(state, p)
+					moves_states.append((p, game_state, ended_game))
 				else:
 					play_randomly = True
 					break
 
 			if play_randomly:
-				state = root_game.next_state(state, choice(legal))
+				state, ended_game = root_game.next_state(state, choice(legal))
 				pass
 			elif all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
 				log_total = log(
 					sum(plays[(player, S)] for p, S in moves_states))
-				value, move, state = max(
+				value, move, state, ended_game = max(
 					((wins[(player, S)] / plays[(player, S)]) +
 					 self.C * sqrt(log_total / plays[(player, S)]), p, S)
-					for p, S in moves_states
+					for p, S, ended_game in moves_states
 				)
 			else:
 				# Otherwise, just make an arbitrary decision.
-				move, state = choice(moves_states)
+				move, state, ended_game = choice(moves_states)
 
 			states_copy.append(state)
 
@@ -163,7 +163,7 @@ class MonteCarloSearchTreeBot(Bot):
 
 			visited_states.add((player, state))
 			player = root_game.acting_player(state)
-			winner = root_game.winner(states_copy)
+			winner = ended_game.winner()
 			if winner >= 0:
 				break
 
