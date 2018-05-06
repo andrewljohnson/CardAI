@@ -355,13 +355,13 @@ class Card(object):
 	@staticmethod
 	def on_graveyard(state, game):
 		if Card.name(state) == 'Rancor':
-			game.players[Card.owner(state)].get_hand().append(state)
+			game.players[Card.owner(state)].hand.append(state)
 		elif Card.name(state) == 'ElephantGuide':
 			token = ElephantToken(Card.owner(state), None, tapped=False, turn_played=game.current_turn)
 			token.id = game.new_card_id
 			game.new_card_id += 1
 			token_state = token.state_repr()
-			game.get_players()[Card.owner(state)].get_hand().append(token_state)
+			game.get_players()[Card.owner(state)].hand.append(token_state)
 			token.play(token_state, game, 0, None)
 
 
@@ -388,7 +388,7 @@ class Land(Card):
 		"""Returns [] if the player already played a land, other returns the action to play tapped."""
 		if game.played_land():
 			return []
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(state)
+		card_index = game.get_players()[game.player_with_priority].hand.index(state)
 		return [('card-{}'.format(
 			Card.name(state)), 
 			card_index, 
@@ -401,17 +401,17 @@ class Land(Card):
 	def play(state, game, mana_to_use, target_creature_id):
 		"""Remove this from the player's hand and add it to game.lands."""
 		player = game.get_players()[game.player_with_priority]
-		player.get_hand().remove(state)
+		player.hand.remove(state)
 		state = Card.set_turn_played(state, game.current_turn)
-		game.get_lands().append(state)
+		game.lands.append(state)
 		if game.print_moves:
 			print "> {} played a {}." \
 				.format(player.display_name(game.player_with_priority), Card.name(state), Card.owner(state), )
 
 	@staticmethod
 	def return_to_hand(state, game):
-		game.get_players()[Card.owner(state)].get_hand().append(state)
-		game.get_lands().remove(state)
+		game.get_players()[Card.owner(state)].hand.append(state)
+		game.lands.remove(state)
 		state = Card.set_tapped(state, False)
 
 	@staticmethod
@@ -421,7 +421,7 @@ class Land(Card):
 		return [
 			(
 				'land_ability-{}'.format(Card.name(state)), 
-				game.get_lands().index(state), 
+				game.lands.index(state), 
 				(), 
 				None, 
 				None,
@@ -487,14 +487,14 @@ class VinesOfVastwood(Card):
 		"""Returns possible VinesOfVastwood targets."""
 		available_mana = game.available_mana()
 		possible_moves = []
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(state)
+		card_index = game.get_players()[game.player_with_priority].hand.index(state)
 		
 		green_count = 0
 		for color, count in available_mana.iteritems():
 			if type (color) == str and 'G' in color:
 				green_count += count
 
-		for creature_state in game.get_creatures():
+		for creature_state in game.creatures:
 			if not Creature.targettable(creature_state):
 				continue
 			if Creature.hexproof(creature_state) and Card.owner(creature_state) != game.player_with_priority:
@@ -550,7 +550,7 @@ class VinesOfVastwood(Card):
 					new_creatures.append(creature_state)
 			game.creatures = new_creatures
 
-		caster.get_hand().remove(state)
+		caster.hand.remove(state)
 		if game.print_moves:
 			if mana_to_use == ('G', ):
 				print "> {} played VinesOfVastwood on {}." \
@@ -580,7 +580,7 @@ class HungerOfTheHowlpack(Card):
 		"""Returns possible VinesOfVastwood targets."""
 		available_mana = game.available_mana()
 		possible_moves = []
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(state)
+		card_index = game.get_players()[game.player_with_priority].hand.index(state)
 		
 		green_count = 0
 		for color, count in available_mana.iteritems():
@@ -589,7 +589,7 @@ class HungerOfTheHowlpack(Card):
 					green_count += count
 					break
 
-		for creature_state in game.get_creatures():
+		for creature_state in game.creatures:
 			if not Creature.targettable(creature_state):
 				continue
 			if Creature.hexproof(creature_state) and Card.owner(creature_state) != game.player_with_priority:
@@ -624,7 +624,7 @@ class HungerOfTheHowlpack(Card):
 				new_creatures.append(creature_state)
 		game.creatures = new_creatures
 
-		game.get_players()[Card.owner(state)].get_hand().remove(state)
+		game.get_players()[Card.owner(state)].hand.remove(state)
 		if game.print_moves:
 			format_str = None
 			if game.creature_died_this_turn:
@@ -648,7 +648,7 @@ class Fireball(Card):
 		"""Returns possible fireballs targets and amounts."""
 		available_mana = game.available_mana()
 		possible_moves = []
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(state)
+		card_index = game.get_players()[game.player_with_priority].hand.index(state)
 		
 		has_red = False
 		total_mana = 0
@@ -665,7 +665,7 @@ class Fireball(Card):
 										None,
 										None,
 										game.player_with_priority))
-			for creature_state in game.get_creatures():
+			for creature_state in game.creatures:
 				if Creature.hexproof(creature_state) and Card.owner(creature_state) != game.player_with_priority:
 					continue
 				if Creature.targettable(creature_state) and Creature.temp_targettable(creature_state):
@@ -682,7 +682,7 @@ class Fireball(Card):
 	def play(state, game, mana_to_use, target_creature_id):
 		"""Decrement hit_points equal to blaster's mana from blastee."""
 		blaster = game.get_players()[game.player_with_priority]
-		blaster.get_hand().remove(state)
+		blaster.hand.remove(state)
 
 		colorless = 0
 		for mana in mana_to_use:
@@ -698,7 +698,7 @@ class Fireball(Card):
 				for e in Creature.enchantments(creature):
 					Card.on_graveyard(e, game)
 				Card.on_graveyard(creature, game)
-				game.get_creatures().remove(creature)
+				game.creatures.remove(creature)
 				game.creature_died_this_turn = True
 			else:
 				target_creature_state = Creature.increment_temp_hit_points(creature, colorless)
@@ -794,9 +794,9 @@ class Creature(Card):
 	def play(state, game, mana_to_use, target_creature_id):
 		"""Summon the creature for the player_with_priority."""
 		summoner = game.get_players()[Card.owner(state)]
-		summoner.get_hand().remove(state)
+		summoner.hand.remove(state)
 		state = Card.set_turn_played(state, game.current_turn)
-		game.get_creatures().append(state)
+		game.creatures.append(state)
 		if game.print_moves:
 			player = game.get_players()[game.player_with_priority]
 			print "> {} summoned a {}." \
@@ -862,7 +862,7 @@ class Creature(Card):
 						break
 
 		if len(colored_symbols) == 0 and total_mana >= Card.mana_cost(state):
-			card_index = game.get_players()[game.player_with_priority].get_hand().index(state)
+			card_index = game.get_players()[game.player_with_priority].hand.index(state)
 			return [('card-{}'.format(Card.name(state)), 
 				card_index, 
 				Card.total_mana_cost(state), 
@@ -996,7 +996,7 @@ class QuirionRanger(Creature):
 			return []
 		untapped_forest = None
 		tapped_forest = None
-		for land_state in game.get_lands():
+		for land_state in game.lands:
 			if Card.owner(land_state) != Card.owner(state):
 				continue
 			if Card.name(land_state) == "Forest" and Card.tapped(land_state):
@@ -1011,12 +1011,12 @@ class QuirionRanger(Creature):
 			different_forest_targets.append(untapped_forest)
 		possible_moves = []
 		for land_state in different_forest_targets:
-				for creature_state in game.get_creatures():
+				for creature_state in game.creatures:
 					if Card.owner(creature_state) == Card.owner(state):
 						possible_moves.append(
 							(
 								'ability-{}'.format(Card.name(state)), 
-								game.get_creatures().index(state), 
+								game.creatures.index(state), 
 								(), 
 								Card.id(creature_state), 
 								Card.id(land_state),
@@ -1032,13 +1032,13 @@ class QuirionRanger(Creature):
 		"""Return a forest to player's hand and untap a creature."""
 		state = Creature.set_activated_ability(state, True)
 
-		for creature_state in game.get_creatures():
+		for creature_state in game.creatures:
 			if Card.id(creature_state) == target_creature_id:
 				creature_state = Creature.set_tapped(creature_state, False)
 				break
 
 		land_to_return = None
-		for land_state in game.get_lands():
+		for land_state in game.lands:
 			if Card.id(land_state) == target_land_id:
 				land_to_return = land_state
 				break
@@ -1143,7 +1143,7 @@ class EldraziSpawnToken(Creature):
 		return [
 			(
 				'ability-{}'.format(Card.name(state)), 
-				game.get_creatures().index(state), 
+				game.creatures.index(state), 
 				(), 
 				None, 
 				None,
@@ -1177,9 +1177,9 @@ class EldraziSpawnToken(Creature):
 			list_block[1] = list_tuple
 			block_where_blocking = tuple(list_block)
 
-		for c_state in game.get_creatures():
+		for c_state in game.creatures:
 			if Card.id(c_state) == Creature.id(state):
-				game.get_creatures().remove(c_state)
+				game.creatures.remove(c_state)
 				break
 
 		player = game.get_players()[game.player_with_priority]
@@ -1249,7 +1249,7 @@ class CreatureEnchantment(Card):
 	def play(state, game, mana_to_use, target_creature_id):
 		"""Summon the enchantment for the player_with_priority."""
 		summoner = game.get_players()[game.player_with_priority]
-		summoner.get_hand().remove(state)
+		summoner.hand.remove(state)
 		state = Card.set_turn_played(state, game.current_turn)
 		target_creature_state = game.creature_with_id(target_creature_id)
 		if target_creature_state: # if it didn't die
@@ -1277,14 +1277,14 @@ class CreatureEnchantment(Card):
 		available_mana = game.available_mana()
 		has_green = False
 		total_mana = 0
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(state)
+		card_index = game.get_players()[game.player_with_priority].hand.index(state)
 		possible_moves = []
 		for color, count in available_mana.iteritems():
 			total_mana += count
 			if type(color) != int and 'G' in color:
 				has_green = True
 		if has_green and total_mana >= Card.mana_cost(state):
-			for c_state in game.get_creatures():
+			for c_state in game.creatures:
 				if Creature.hexproof(c_state) and Card.owner(c_state) != game.player_with_priority:
 					continue
 				if Creature.targettable(c_state) and Creature.temp_targettable(c_state):

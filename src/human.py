@@ -19,7 +19,7 @@ class Human(Bot):
 			for p in legal_plays:
 				card_index = p[1]
 				if p[0].startswith("card"):
-					card = game.get_players()[game.player_with_priority].get_hand()[card_index]
+					card = game.get_players()[game.player_with_priority].hand[card_index]
 					if card.card_type == card_type:
 						sorted_plays.append(p)
 
@@ -34,7 +34,7 @@ class Human(Bot):
 		for p in legal_plays:
 			card_index = p[1]
 			if p[0].startswith("card"):
-				card = game.get_players()[game.player_with_priority].get_hand()[card_index]
+				card = game.get_players()[game.player_with_priority].hand[card_index]
 				if card.card_type not in ["creature", "land", "enchantment"]:
 					sorted_plays.append(p)
 
@@ -84,8 +84,8 @@ class Human(Bot):
 
 	def print_board(self, game, show_hand=True):
 		if len(game.creatures):
-			Card.print_hand(game.get_creatures(), owner=game.get_players().index(self))
+			Card.print_hand(game.creatures, owner=game.get_players().index(self))
 		if len(game.lands):
-			Card.print_hand(game.get_lands(), owner=game.get_players().index(self))
-		Card.print_hand(self.get_hand(), show_hand=show_hand)
+			Card.print_hand(game.lands, owner=game.get_players().index(self))
+		Card.print_hand(self.hand, show_hand=show_hand)
 		print "\n                         {} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(0), self.temp_mana)

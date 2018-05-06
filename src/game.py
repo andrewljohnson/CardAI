@@ -329,7 +329,7 @@ class Game():
 				continue
 
 			used_land = False
-			for land_state in self.get_lands():
+			for land_state in self.lands:
 				if Card.owner(land_state) == self.player_with_priority and not Card.tapped(land_state):
 					used_land = False
 					for c in mana:
@@ -340,14 +340,7 @@ class Game():
 					if used_land:
 						break
 			if used_land:
-				new_lands = []
-				for lstate in self.get_lands():
-					if lstate == land_state:
-						land_state = Card.set_tapped(land_state, True)
-						new_lands.append(land_state)
-					else:
-						new_lands.append(lstate)
-				self.lands = new_lands
+				self.tap_land(land_state)
 
 		while colorless > 0:
 			temp_index_to_remove = 0
@@ -373,15 +366,20 @@ class Game():
 				del caster.temp_mana[temp_index_to_remove]
 				continue
 
-			new_lands = []
-			for land_state in self.get_lands():
+			for land_state in self.lands:
 				if Card.owner(land_state) == self.player_with_priority and not Card.tapped(land_state):
 					tapped_state = Card.set_tapped(land_state, True)
 					colorless -= 1
-					new_lands.append(tapped_state)
-				else:
-					new_lands.append(land_state)
-			self.lands = new_lands
+					self.lands[self.lands.index(land_state)] = tapped_state
+
+
+	def tap_land(self, land_state):
+		for lstate in self.lands:
+			if lstate == land_state:
+				land_state = Card.set_tapped(land_state, True)
+				self.lands[self.lands.index(lstate)] = land_state
+				break
+
 
 	def available_mana(self):
 		"""
@@ -389,7 +387,7 @@ class Game():
 			and mana pool.
 		"""
 		mana = collections.Counter()
-		for land_state in self.get_lands():
+		for land_state in self.lands:
 			if Card.owner(land_state) == self.player_with_priority and not Card.tapped(land_state):
 				mana.update(Land.mana_provided(land_state))
 
@@ -411,7 +409,7 @@ class Game():
 			self.current_spell_move = None
 			# lands don't go on stack
 			card_index = move[1]
-			state = self.get_players()[self.player_with_priority].get_hand()[card_index]
+			state = self.get_players()[self.player_with_priority].hand[card_index]
 			if state[5] == 'land':
 				self.play_card_move_from_stack(move)
 				return
@@ -434,16 +432,12 @@ class Game():
 		target_creature = move[3]
 		mana_to_use = move[2]
 		card_index = move[1]
-		card_state = self.get_players()[player_number].get_hand()[card_index]
+		card_state = self.get_players()[player_number].hand[card_index]
 		Card.play(card_state, self, mana_to_use, target_creature)
-		new_creatures = []
-		for creature_state in self.get_creatures():
-			new_creatures.append(Card.react_to_spell(creature_state, card_state))
-		self.creatures = new_creatures
-		new_lands = []
-		for land_state in self.get_lands():
-			new_lands.append(Card.react_to_spell(land_state, card_state))
-		self.lands = new_lands
+		for creature_state in self.creatures:
+			self.creatures[self.creatures.index(creature_state)] = Card.react_to_spell(creature_state, card_state)
+		for land_state in self.lands:
+			self.lands[self.lands.index(land_state)] = Card.react_to_spell(land_state, card_state)
 
 	def play_ability_move_from_stack(self, move):
 		"""Play an activated based on the move tuple."""
@@ -456,14 +450,10 @@ class Game():
 		card_in_play = self.creature_with_id(target_creature_id)
 		Card.activate_ability(card_state, self, mana_to_use, target_creature_id, target_land_id, card_in_play)
 		#TODO should this be diff function than in play_card_move?
-		new_creatures = []
-		for creature_state in self.get_creatures():
-			new_creatures.append(Card.react_to_spell(creature_state, card_state))
-		self.creatures = new_creatures
-		new_lands = []
-		for land_state in self.get_lands():
-			new_lands.append(Card.react_to_spell(land_state, card_state))
-		self.lands = new_lands
+		for creature_state in self.creatures:
+			self.creatures[self.creatures.index(creature_state)] = Card.react_to_spell(creature_state, card_state)
+		for land_state in self.lands:
+			self.lands[self.lands.index(land_state)] = Card.react_to_spell(land_state, card_state)
 
 	def play_land_ability_move(self, move):
 		"""Play an activated based on the move tuple."""
@@ -472,12 +462,12 @@ class Game():
 		target_land_id = move[4]
 		mana_to_use = move[2]
 		card_index = move[1]
-		card_state = self.get_lands()[card_index]
+		card_state = self.lands[card_index]
 		Land.activate_ability(card_state, self)
-		for creature_state in self.get_creatures():
+		for creature_state in self.creatures:
 			#TODO react to land tapping
 			pass
-		for land_state in self.get_lands():
+		for land_state in self.lands:
 			#TODO react to land tapping
 			pass
 
@@ -536,11 +526,11 @@ class Game():
 
 	def played_land(self):
 		"""Returns True if the player_with_priority has played a land this turn."""
-		for land_state in self.get_lands():
+		for land_state in self.lands:
 			if Card.owner(land_state) == self.player_with_priority and Card.turn_played(land_state) == self.current_turn:
 				return True
 
-		for card_state in self.players[self.player_with_priority].get_hand():
+		for card_state in self.players[self.player_with_priority].hand:
 			if Card.turn_played(card_state) == self.current_turn and Card.card_type(card_state) == 'land':
 				return True
 		return False
@@ -548,7 +538,7 @@ class Game():
 	def add_cast_actions(self, game, possible_moves):
 		"""Return a list of possible cast actions based on the player_with_priority's hand."""
 		card_types_added = []
-		hand = game.get_players()[game.player_with_priority].get_hand()
+		hand = game.get_players()[game.player_with_priority].hand
 		for card_state in hand:
 			if Card.name(card_state) not in card_types_added:
 				if game.phase in ['attack_step', 'combat_resolution']:
@@ -569,13 +559,13 @@ class Game():
 		"""Return a list of possible actions based on the player_with_priority's hand."""
 		possible_moves = set()
 		card_index = move[1]
-		card_state = game.get_players()[game.player_with_priority].get_hand()[card_index]
+		card_state = game.get_players()[game.player_with_priority].hand[card_index]
 		[possible_moves.add(m) for m in Card.possible_moves(card_state, game)]
 		return list(possible_moves)
 
 	def add_instant_creature_abilities(self, game, possible_moves):
 		"""Return a list of possible actions based on the player_with_priority's hand."""
-		for creature_state in game.get_creatures():
+		for creature_state in game.creatures:
 			if Card.owner(creature_state) == game.player_with_priority:
 				if game.phase in ['attack_step', 'combat_resolution']:
 					if Creature.activated_ability_type(creature_state) != 'instant':
@@ -586,7 +576,7 @@ class Game():
 	def add_land_abilities(self, game, possible_moves):
 		"""Return a list of possible actions based on the player_with_priority's lands."""
 		land_types_added = set()
-		for land_state in game.get_lands():
+		for land_state in game.lands:
 			if Card.name(land_state) not in land_types_added:
 				if Card.owner(land_state) == game.player_with_priority:
 					[possible_moves.add(m) for m in Land.possible_ability_moves(land_state, game)]
@@ -596,7 +586,7 @@ class Game():
 	def add_attack_actions(self, game, possible_moves):
 		"""Return a list of possible actions based on the player_with_priority's creatures."""
 		available_attackers = []
-		for creature_state in game.get_creatures():
+		for creature_state in game.creatures:
 			if Card.owner(creature_state) == game.player_with_priority and Creature.can_attack(creature_state, game):
 				available_attackers.append(Card.id(creature_state))
 		
@@ -646,7 +636,7 @@ class Game():
 			self.new_card_id
 		)
 		new_card_state = new_card.state_repr()
-		current_player.get_hand().append(new_card_state)
+		current_player.hand.append(new_card_state)
 		self.new_card_id += 1
 
 		if self.phase == "draw":
@@ -675,14 +665,9 @@ class Game():
 			p.temp_mana = []
 		self.attackers = attackers
 				
-		new_creatures = []
-		for creature_state in self.get_creatures():
+		for creature_state in self.creatures:
 			if Card.id(creature_state) in self.attackers:
-				tapped_state = Card.set_tapped(creature_state, True)
-				new_creatures.append(tapped_state)
-			else:
-				new_creatures.append(creature_state)
-		self.creatures = new_creatures
+				self.creatures[self.creatures.index(creature_state)] = Card.set_tapped(creature_state, True)
 
 		if self.print_moves:
 			current_player = self.get_players()[self.player_with_priority]
@@ -801,8 +786,8 @@ class Game():
 			for e in Creature.enchantments(dc_state):
 				Card.on_graveyard(e, self)
 
-		new_creatures = []		
-		for creature_state in self.get_creatures():
+		new_creatures = []
+		for creature_state in self.creatures:
 			if Card.id(creature_state) not in dead_creatures:
 				new_creatures.append(creature_state)
 		self.creatures = new_creatures
@@ -812,7 +797,7 @@ class Game():
 
 	def creature_with_id(self, creature_id):
 		"""Return the creature in self.creatures with id equal to creature_id."""
-		for creature_state in self.get_creatures():
+		for creature_state in self.creatures:
 			if Card.id(creature_state) == creature_id:
 				return creature_state
 
@@ -832,17 +817,13 @@ class Game():
 		for player in self.get_players():
 			player.adjust_for_end_turn()
 
-		new_creatures = []
-		for creature_state in self.get_creatures():
-			new_creatures.append(Creature.adjust_for_end_turn(creature_state))
-		self.creatures = new_creatures
+		for creature_state in self.creatures:
+			self.creatures[self.creatures.index(creature_state)] = Creature.adjust_for_end_turn(creature_state)
 
-		new_lands = []
-		for land_state in self.get_lands():
-			new_lands.append(Card.adjust_for_end_turn(land_state))
-		self.lands = new_lands
+		for land_state in self.lands:
+			self.lands[self.lands.index(land_state)] = Card.adjust_for_end_turn(land_state)
 
-		for idx, card_list in enumerate([self.get_creatures(), self.get_lands()]):
+		for idx, card_list in enumerate([self.creatures, self.lands]):
 			new_card_list = []
 			for card_state in card_list:
 				if Card.owner(card_state) == self.player_with_priority:
@@ -867,7 +848,7 @@ class Game():
 		possible_moves = [('finish_blocking', self.player_with_priority, 0)]
 
 		blockers = []
-		for c_state in self.get_creatures():
+		for c_state in self.creatures:
 			if Card.owner(c_state)== self.player_with_priority:
 				if Card.id(c_state) not in self.blockers:
 					blockers.append(Card.id(c_state))
@@ -908,7 +889,7 @@ class Game():
 			return "Playing Top Move on Stack: {}".format(self.stack[-1])
 		elif move_type.startswith('card'):
 			card_index = move[1]
-			card_state = self.get_players()[self.player_with_priority].get_hand()[card_index]
+			card_state = self.get_players()[self.player_with_priority].hand[card_index]
 			if Card.card_type(card_state) == "creature":
 				action_word = "Summon"
 			elif Card.card_type(card_state) == "land":
@@ -949,7 +930,7 @@ class Game():
 			target_land_id = move[4]
 			land_to_return = None
 			tapped_string = None
-			for land_state in self.get_lands():
+			for land_state in self.lands:
 				if Card.id(land_state) == target_land_id:
 					land_to_return = land
 					if Card.tapped(land_state):
@@ -964,7 +945,7 @@ class Game():
 			return action_string
 		elif move_type.startswith('land_ability'):
 			card_index = move[1]
-			card_state = self.get_lands()[card_index]
+			card_state = self.lands[card_index]
 			return "Tap {}".format(Card.display_name(card_state))
 		else:
 			# too slow: eval("self.{}".format(move[0]))(move[1])

@@ -38,7 +38,7 @@ class Bot(object):
 		"""Return a hashable tuple representing the Bot."""
 		return (
 			self.hit_points, 
-			tuple([c for c in self.get_hand()]),
+			tuple([c for c in self.hand]),
 			tuple(self.temp_mana)
 		)
 
@@ -81,17 +81,17 @@ class Bot(object):
 			player_str = "{} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(1), self.temp_mana)
 			spaces = "".join([" " for x in range(0,(SCREEN_WIDTH-len(player_str))/2)])
 			print "{}{}\n".format(spaces, player_str)
-			Card.print_hand(self.get_hand(), show_hand=show_hand)
+			Card.print_hand(self.hand, show_hand=show_hand)
 			if len(game.lands):
-				Card.print_hand(game.get_lands(), owner=game.get_players().index(self))
+				Card.print_hand(game.lands, owner=game.get_players().index(self))
 			if len(game.creatures):
-				Card.print_hand(game.get_creatures(), owner=game.get_players().index(self))
+				Card.print_hand(game.creatures, owner=game.get_players().index(self))
 		else:
 			if len(game.creatures):
-				Card.print_hand(game.get_creatures(), owner=game.get_players().index(self))
+				Card.print_hand(game.creatures, owner=game.get_players().index(self))
 			if len(game.lands):
-				Card.print_hand(game.get_lands(), owner=game.get_players().index(self))
-			Card.print_hand(self.get_hand(), show_hand=show_hand)
+				Card.print_hand(game.lands, owner=game.get_players().index(self))
+			Card.print_hand(self.hand, show_hand=show_hand)
 			player_str = "{} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(0), self.temp_mana)
 			spaces = "".join([" " for x in range(0,(SCREEN_WIDTH-len(player_str))/2)])
 			print "\n{}{}".format(spaces, player_str)
