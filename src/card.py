@@ -27,25 +27,6 @@ class Card(object):
 	@staticmethod
 	def class_for_name(name):
 		"""Return a dict mapping card name to class."""	
-		card_classes = [
-			BurningTreeEmissary,
-			EldraziSpawnToken,
-			ElephantGuide,
-			ElephantToken,
-			Forest,
-			HungerOfTheHowlpack,
-			NestInvader,
-			NettleSentinel,			
-			QuirionRanger,
-			Rancor,
-			SilhanaLedgewalker,
-			SkarrganPitSkulk,
-			VaultSkirge,
-			VinesOfVastwood,
-		]
-		class_map = {}
-		for c in card_classes:
-			class_map[c.__name__] = c
 		return class_map[name]
 
 	@staticmethod
@@ -1463,3 +1444,25 @@ class ElephantToken(Creature):
 
 	def creature_types(self):
 		return ['Elephant', 'Token']
+
+
+card_classes = [
+			BurningTreeEmissary,
+			EldraziSpawnToken,
+			ElephantGuide,
+			ElephantToken,
+			Forest,
+			HungerOfTheHowlpack,
+			NestInvader,
+			NettleSentinel,			
+			QuirionRanger,
+			Rancor,
+			SilhanaLedgewalker,
+			SkarrganPitSkulk,
+			VaultSkirge,
+			VinesOfVastwood,
+		]
+class_map = {}
+for c in card_classes:
+	class_map[c.__name__] = c
+

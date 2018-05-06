@@ -21,6 +21,7 @@ class MonteCarloSearchTreeBot(Bot):
 
 		# the amount of time to call run_simulation as much as possible 		
 		self.calculation_time = datetime.timedelta(seconds=simulation_time)
+		self.simulation_time = simulation_time
 
 		# the max_moves for any simulation
 		self.max_moves = max_moves
@@ -46,10 +47,7 @@ class MonteCarloSearchTreeBot(Bot):
 		"""
 		state = root_game.states[-1]
 
-		if state in statcache.bot_stats(root_game.player_with_priority).cached_start_games and state in statcache.bot_stats(root_game.player_with_priority).legal_moves_cache:
-			legal = statcache.bot_stats(root_game.player_with_priority).legal_moves_cache[state]
-		else:
-			legal, _ = root_game.legal_plays(root_game.states[:])
+		legal = root_game.legal_plays(root_game.states[:])
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
@@ -68,14 +66,17 @@ class MonteCarloSearchTreeBot(Bot):
 			sys.stdout.write('\b')
 			games += 1
 
+		print "SIMULATED {} playouts/s".format(games*1.0/self.simulation_time)
+
+
 		CURSOR_UP_ONE = '\x1b[1A'
 		ERASE_LINE = '\x1b[2K'
 		print ERASE_LINE + CURSOR_UP_ONE
 		
 		moves_states = []
 		for p in legal:
-			game_state, game = root_game.next_state(state, p)
-			moves_states.append((p, game_state, game))
+			game_state = root_game.next_state(state, p)
+			moves_states.append((p, game_state))
 
 		player = root_game.acting_player(state)
 
@@ -84,21 +85,21 @@ class MonteCarloSearchTreeBot(Bot):
 			(statcache.bot_stats(root_game.player_with_priority).wins.get((player, S), 0) * 1.0 /
 			 statcache.bot_stats(root_game.player_with_priority).plays.get((player, S), 1),
 			 p)
-			for p, S, _ in moves_states
+			for p, S in moves_states
 		)
 
 		if self.show_simulation_results:
 			# Display the stats for each possible play.
+			'''
 			for x in sorted(
 				((100 * statcache.bot_stats(root_game.player_with_priority).wins.get((player, S), 0) * 1.0 /
 					statcache.bot_stats(root_game.player_with_priority).plays.get((player, S), 1),
 					statcache.bot_stats(root_game.player_with_priority).wins.get((player, S), 0),
 					statcache.bot_stats(root_game.player_with_priority).plays.get((player, S), 0), p)
-				 for p, S, _ in moves_states),
+				 for p, S in moves_states),
 				reverse=True
 			):
 				print "{3}: {0:.2f}% ({1} / {2})".format(*x)
-			'''
 			'''
 		return move
 
@@ -107,12 +108,10 @@ class MonteCarloSearchTreeBot(Bot):
 	def run_simulation(self, root_game, statcache):
 		# A bit of an optimization here, so we have a local
 		# variable lookup instead of an attribute access each loop.
-		plays, wins, cached_end_states, legal_moves_cache, cached_start_games = \
+		plays, wins, legal_moves_cache = \
 			statcache.bot_stats(root_game.player_with_priority).plays, \
 			statcache.bot_stats(root_game.player_with_priority).wins,  \
-			statcache.bot_stats(root_game.player_with_priority).cached_end_states,  \
-			statcache.bot_stats(root_game.player_with_priority).legal_moves_cache,  \
-			statcache.bot_stats(root_game.player_with_priority).cached_start_games, \
+			statcache.bot_stats(root_game.player_with_priority).legal_moves_cache
 
 		visited_states = set()
 		states_copy = root_game.states[:]
@@ -121,54 +120,39 @@ class MonteCarloSearchTreeBot(Bot):
 
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
-			curr_play_num = state[1]
 
-			cached_game = None
-			if state in cached_start_games:
-				pass 
-				# cached_game = root_game.game_for_state(state)
-				# cached_game = pickle.loads(cached_start_games[state])
-				# cached_game = cached_start_games[state]
-			else:
-				#root_game.states = None
-				#cached_start_games[state] = pickle.dumps(root_game) 
-				#root_game.states = states_copy
-				legal_moves_cache[state], cached_start_games[state] = root_game.legal_plays(states_copy)			
 			if state not in legal_moves_cache:
-				legal_moves_cache[state], _ = root_game.legal_plays(states_copy)		
-		
-			legal = legal_moves_cache[state]
+				legal_moves_cache[state] = root_game.legal_plays(states_copy)		
+			legal = legal_moves_cache[state]			
 
 			moves_states = []
+			play_randomly = True
+			
 			for p in legal:
-				if (p, state) in cached_end_states:
-					game_state = cached_end_states[(p, state)]
-					_, game = root_game.next_state(state, p, repr_state=False)
-				else: 
-					g = cached_start_games[state] if state in cached_start_games else None
-					game_state, game = root_game.next_state(state, p, game=g)
-					if g:
-						cached_start_games[game_state] = game
-						del cached_start_games[state]
-				moves_states.append((p, game_state, game))
-				cached_end_states[(p, state)] = game_state
-			if all(plays.get((player, S)) for p, S, _ in moves_states):
+				if (p[1], state) in plays:
+					game_state = root_game.next_state(state, p)
+					moves_states.append((p, game_state))
+				else:
+					play_randomly = True
+					break
+
+			if play_randomly:
+				state = root_game.next_state(state, choice(legal))
+				pass
+			elif all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
 				log_total = log(
-					sum(plays[(player, S)] for p, S, _ in moves_states))
+					sum(plays[(player, S)] for p, S in moves_states))
 				value, move, state = max(
 					((wins[(player, S)] / plays[(player, S)]) +
 					 self.C * sqrt(log_total / plays[(player, S)]), p, S)
-					for p, S, _ in moves_states
+					for p, S in moves_states
 				)
 			else:
 				# Otherwise, just make an arbitrary decision.
-				move, state, game = choice(moves_states)
+				move, state = choice(moves_states)
 
 			states_copy.append(state)
-
-
-			# print "moved {} to sim state {}".format(move, state)
 
 			# `player` here and below refers to the player
 			# who moved into that particular state.

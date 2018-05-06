@@ -288,7 +288,7 @@ class Game():
 		"""Return the player_number of the player due to make move in state."""
 		return state[1]
 
-	def next_state(self, state, move, game=None, repr_state=True):
+	def next_state(self, state, move, game=None):
 		"""Return a new state after applying the move to state."""
 		if game:
 			clone_game = game
@@ -331,11 +331,9 @@ class Game():
 			elif move[0] == 'assign_blockers':
 				clone_game.assign_blockers(move[1])
 
-		state_rep = None
-		if repr_state:
-			state_rep = clone_game.state_repr()
-			clone_game.states.append(state_rep)
-		return state_rep, clone_game
+		state_rep = clone_game.state_repr()
+		clone_game.states.append(state_rep)
+		return state_rep
 
 	def tap_lands_for_mana(self, mana_to_tap):
 		"""Tap land_to_tap lands to pay for a spell or effect."""
@@ -527,11 +525,11 @@ class Game():
 		if game.current_spell_move:
 			return game.card_actions(game, move=game.current_spell_move), game
 		elif len(game.stack) > 0 and game.stack[-1][5] == game.player_with_priority:		
-			return [('play_next_on_stack', game.player_with_priority, 0),]	, game		
+			return [('play_next_on_stack', game.player_with_priority, 0),]		
 		elif len(game.stack) > 0 and game.stack[-1][5] != game.player_with_priority and game.player_with_priority == game.current_turn_player():		
 			return[('pass_priority_as_attacker', game.player_with_priority, 0)], game
 		elif game.phase == "setup":
-			return [('initial_draw', game.player_with_priority, 0),], game			
+			return [('initial_draw', game.player_with_priority, 0),]	
 		elif game.phase == "draw":
 			return [('draw_card', game.player_with_priority, 0),]	, game		
 		elif game.phase == "attack_step" and game.player_with_priority == game.current_turn_player():
