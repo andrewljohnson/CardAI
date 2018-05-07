@@ -29,6 +29,18 @@ class Card(object):
 		"""Return a dict mapping card name to class."""	
 		return class_map[name]
 
+	@staticmethod
+	def get_tuple(classname, owner, new_id, turn_played, card_type=None):
+		"""Return a hashable tuple representing the Card."""
+		return (
+			classname,
+			owner, 
+			new_id, 
+			False, # tapped 
+			turn_played, 
+			name_to_card_type[classname], 
+		)
+
 	def state_repr(self):
 		"""Return a hashable tuple representing the Card."""
 		return (
@@ -228,11 +240,11 @@ class Card(object):
 	@staticmethod
 	def mana_cost(state):
 		colorless = 0
-		for mana in Card.total_mana_cost(state):
-			if isinstance(mana, int):
-				colorless += mana
-			else:
-				colorless += 1
+		mana_cost = Card.total_mana_cost(state)
+		for mana in mana_cost[0]:
+			colorless += 1
+		if mana_cost[1] != None:
+			colorless += mana_cost[1]
 		return colorless
 
 	@staticmethod
@@ -331,10 +343,9 @@ class Card(object):
 	def casting_cost_string(state, move=None):
 		casting_cost = ""
 		cc = move[2] if move else Card.total_mana_cost(state)
-		for c in cc:
-			if type(c) == int:
-				casting_cost += str(c)
-			elif 'L' in c:
+		casting_cost = str(cc[1])
+		for c in cc[0]:
+			if 'L' in c:
 				casting_cost += " and {} life".format(c.split('L')[1])
 			elif type(c) == str:
 				casting_cost += c
@@ -360,6 +371,7 @@ class Card(object):
 			token = ElephantToken(Card.owner(state), None, tapped=False, turn_played=game.current_turn)
 			token.id = game.new_card_id
 			game.new_card_id += 1
+			# ADD STATIC state_repr to creature class
 			token_state = token.state_repr()
 			game.get_players()[Card.owner(state)].hand.append(token_state)
 			token.play(token_state, game, 0, None)
@@ -372,17 +384,6 @@ class Land(Card):
 		super(Land, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
 		self.card_type = "land"
 
-	def state_repr(self):
-		"""Return a hashable tuple representing the Land."""
-		return (
-			self.__class__.__name__,
-			self.owner, 
-			self.id, 
-			self.tapped, 
-			self.turn_played, 
-			self.card_type, 
-		)
-
 	@staticmethod
 	def possible_moves(state, game):
 		"""Returns [] if the player already played a land, other returns the action to play tapped."""
@@ -392,7 +393,7 @@ class Land(Card):
 		return [('card-{}'.format(
 			Card.name(state)), 
 			card_index, 
-			(), 
+			((), None, ), 
 			None,
 			None,
 			game.player_with_priority)]
@@ -422,7 +423,7 @@ class Land(Card):
 			(
 				'land_ability-{}'.format(Card.name(state)), 
 				game.lands.index(state), 
-				(), 
+				((), None, ), 
 				None, 
 				None,
 				game.player_with_priority
@@ -503,7 +504,7 @@ class VinesOfVastwood(Card):
 				possible_moves.append(
 					('card-{}'.format(Card.name(creature_state)), 
 					card_index, 
-					('G', ), 
+					(('G', ), None), 
 					Card.id(creature_state),
 					None,
 					game.player_with_priority))
@@ -511,7 +512,7 @@ class VinesOfVastwood(Card):
 				possible_moves.append(
 					('card-{}'.format(Card.name(creature_state)), 
 					card_index, 
-					('G', 'G'), 
+					(('G', 'G',), None), 
 					Card.id(creature_state),
 					None,
 					game.player_with_priority))
@@ -597,7 +598,7 @@ class HungerOfTheHowlpack(Card):
 			if green_count > 0:
 				possible_moves.append(('card-{}'.format(Card.name(creature_state)), 
 										card_index, 
-										('G', ), 
+										(('G', ), None), 
 										Card.id(creature_state),
 										None,
 										game.player_with_priority))
@@ -660,8 +661,8 @@ class Fireball(Card):
 		if has_red and total_mana > 1:
 			for mana in range(2, total_mana+1):
 				possible_moves.append(('card-fireball', 
-										card_index, 
-										('R', mana-1), 
+										card_index,
+										(('R', ), mana-1),
 										None,
 										None,
 										game.player_with_priority))
@@ -672,7 +673,7 @@ class Fireball(Card):
 					for mana in range(2, total_mana+1):
 						possible_moves.append(('card-fireball-creature', 
 							card_index, 
-							('R', mana-1), 
+							(('R', ), mana-1), 
 							Card.id(creature_state),
 							None,
 							game.player_with_priority))
@@ -685,10 +686,8 @@ class Fireball(Card):
 		blaster.hand.remove(state)
 
 		colorless = 0
-		for mana in mana_to_use:
-			if isinstance(mana, int):
-				colorless = mana
-				break
+		if mana_to_use[1] != None:
+			colorless = mana_to_use[1]
 		if target_creature_id:
 			blaster = game.get_players()[game.player_with_priority]
 			creature = game.creature_with_id(target_creature_id)
@@ -762,6 +761,33 @@ class Creature(Card):
 				self.hexproof,
 				self.lifelink,
 				tuple(self.enchantments),
+		)
+
+	@staticmethod
+	def get_tuple(classname, owner, new_id, turn_played, 
+		flying=False,
+		hexproof=False,
+		lifelink=False):
+		"""Return a hashable tuple representing the Card."""
+		return (
+			classname,
+			owner, 
+			new_id, 
+			False, # tapped 
+			turn_played, 
+			name_to_card_type[classname], 
+			False, #targettable, 
+			0, # temp_strength, 
+			0, # temp_hit_points,
+			False, # temp_targettable,
+			False, # activated_ability,
+			'instant', # activated_ability_type,
+			0, # strength_counters,
+			0, #hit_point_counters,
+			flying,
+			hexproof,
+			lifelink,
+			(),
 		)
 
 	@staticmethod
@@ -846,8 +872,8 @@ class Creature(Card):
 		available_mana = game.available_mana()
 		
 		colored_symbols = []
-		for mana in Card.total_mana_cost(state):
-			if type(mana) != int and 'L' not in mana:
+		for mana in Card.total_mana_cost(state)[0]:
+			if 'L' not in mana:
 				colored_symbols.append(mana)
 		
 		total_mana = 0
@@ -969,8 +995,8 @@ class NettleSentinel(Creature):
 	@staticmethod
 	def react_to_spell(state, card):
 		total_mana_cost = Card.total_mana_cost(card)
-		for item in total_mana_cost:
-			if type(item) == str and 'G' in item:
+		for item in total_mana_cost[0]:
+			if 'G' in item:
 				state = Card.set_tapped(state, False)
 				return state
 		return state
@@ -1017,7 +1043,7 @@ class QuirionRanger(Creature):
 							(
 								'ability-{}'.format(Card.name(state)), 
 								game.creatures.index(state), 
-								(), 
+								((), None), 
 								Card.id(creature_state), 
 								Card.id(land_state),
 								game.player_with_priority,
@@ -1144,7 +1170,7 @@ class EldraziSpawnToken(Creature):
 			(
 				'ability-{}'.format(Card.name(state)), 
 				game.creatures.index(state), 
-				(), 
+				((), None), 
 				None, 
 				None,
 				game.player_with_priority,
@@ -1291,7 +1317,7 @@ class CreatureEnchantment(Card):
 					possible_moves.append(
 						('card-rancor', 
 						card_index, 
-						('G', ), 
+						(('G', ), None), 
 						Card.id(c_state),
 						None,
 						game.player_with_priority))
@@ -1350,21 +1376,40 @@ for c in card_classes:
 
 
 name_to_mana_cost = {
-			'NestInvader':('G', 1),
-			'SilhanaLedgewalker':('G', 1),
-			'VaultSkirge': ('B', 1),
-			'VinesOfVastwood': ('G', ),
-			'HungerOfTheHowlpack': ('G', ),
-			'NettleSentinel': ('G', ),
-			'QuirionRanger': ('G', ),
-			'BurningTreeEmissary': ('RG', 'RG'),
-			'SkarrganPitSkulk': ('G',),
-			'Rancor': ('G', ),
-			'EldraziSpawnToken': (0,),
-			'ElephantGuide': ('G', 2),	
-			'ElephantToken': (0,),	
-			'Forest': (),	
-			'Mountain': (),	
+			'NestInvader':(('G', ), 1),
+			'SilhanaLedgewalker':(('G', ), 1),
+			'VaultSkirge': (('B', ), 1),
+			'VinesOfVastwood': (('G', ), None),
+			'HungerOfTheHowlpack': (('G', ), None),
+			'NettleSentinel': (('G', ), None),
+			'QuirionRanger': (('G', ), None),
+			'BurningTreeEmissary': (('RG', 'RG', ), None),
+			'SkarrganPitSkulk': (('G', ), None),
+			'Rancor': (('G', ), None),
+			'EldraziSpawnToken': ((), 0),
+			'ElephantGuide': (('G', ), 2),	
+			'ElephantToken': ((), 0),	
+			'Forest': ((), None),	
+			'Mountain': ((), None),	
+		}
+
+
+name_to_card_type = {
+			'NestInvader': 'creature',
+			'SilhanaLedgewalker': 'creature',
+			'VaultSkirge': 'creature',
+			'VinesOfVastwood': 'instant',
+			'HungerOfTheHowlpack': 'instant',
+			'NettleSentinel': 'creature',
+			'QuirionRanger': 'creature',
+			'BurningTreeEmissary': 'creature',
+			'SkarrganPitSkulk': 'creature',
+			'Rancor': 'enchantment',
+			'EldraziSpawnToken': 'creature',
+			'ElephantGuide': 'enchantment',	
+			'ElephantToken': 'creature',	
+			'Forest': 'land',	
+			'Mountain': 'land',	
 		}
 
 

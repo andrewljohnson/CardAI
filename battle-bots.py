@@ -8,7 +8,7 @@ from src.bot import Bot
 from src.human import Human
 from src.monte_carlo_search_tree import MonteCarloSearchTreeBot
 from src.game import Game
-
+from src.statcache import StatCache
 
 def create_parser():
 	"""Create the argparse parser."""
@@ -37,11 +37,14 @@ def main():
 		'MonteCarloSearchTreeBot',
 		'Human'
 	]
+
 	game = Game()
+	game.print_moves = True
+
 	for pid in args.players:
 		bot = eval("{}".format(bots_types[pid]))(hit_points=args.starting_hit_points)
 		game.players.append(bot)
-	game.print_moves = True
+
 	game.play_out()
 
 

@@ -36,7 +36,7 @@ class MonteCarloSearchTreeBot(Bot):
 	def play_move(self, game, statcache):
 		"""Play a move in game."""
 		move = self.get_play(game, statcache)
-		game = game.next_state(None, move, game=game)
+		game = game.apply_move(None, move, game=game)
 		statcache.past_states.append(game.state_repr())
 		return move
 
@@ -76,7 +76,7 @@ class MonteCarloSearchTreeBot(Bot):
 		
 		moves_states = []
 		for p in legal:
-			game = root_game.next_state(state, p)
+			game = root_game.apply_move(state, p)
 			moves_states.append((p, game.state_repr()))
 
 		player = root_game.acting_player(state)
@@ -131,7 +131,7 @@ class MonteCarloSearchTreeBot(Bot):
 			ended_game_for_move = {}
 			for p in legal:
 				if (p[1], state) in plays:
-					ended_game_for_move[p] = root_game.next_state(state, p)
+					ended_game_for_move[p] = root_game.apply_move(state, p)
 					game_state = ended_game_for_move[p].state_repr()
 					moves_states.append((p, game_state, ended_game_for_move[p]))
 				else:
@@ -140,10 +140,9 @@ class MonteCarloSearchTreeBot(Bot):
 
 			if play_randomly:
 				move = choice(legal)
-				ended_game_for_move[move] = root_game.next_state(state, move)
+				ended_game_for_move[move] = root_game.apply_move(state, move)
 				state = ended_game_for_move[move].state_repr()
-				pass
-			elif all(plays.get((player, S)) for p, S in moves_states):
+  			elif all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
 				log_total = log(
 					sum(plays[(player, S)] for p, S in moves_states))

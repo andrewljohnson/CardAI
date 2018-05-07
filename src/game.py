@@ -52,7 +52,6 @@ class Game():
 		self.damage_to_players = [0, 0]
 
 		self.stack = []
-		self.stack = []
 
 		self.creature_died_this_turn = False
 
@@ -163,7 +162,7 @@ class Game():
 	"""
 		Bot protocol methods after this. These are: 
 
-			play_out, winner, acting_player, next_state, legal_plays.
+			play_out, winner, acting_player, apply_move, legal_plays.
 	"""
 
 	def play_out(self):
@@ -243,7 +242,7 @@ class Game():
 		"""Return the player_number of the player due to make move in state."""
 		return state[1]
 
-	def next_state(self, state, move, game=None):
+	def apply_move(self, state, move, game=None):
 		"""Return a new state after applying the move to state."""
 		if game:
 			clone_game = game
@@ -295,10 +294,8 @@ class Game():
 		colorless = 0
 
 		caster = self.get_players()[self.player_with_priority]
-		for mana in mana_to_tap:
-			if isinstance(mana, int):
-				colorless = mana
-			elif mana.startswith("L"):
+		for mana in mana_to_tap[0]:
+			if mana.startswith("L"):
 				caster.hit_points -= int(mana[1:])
 				if self.print_moves:
 					print "> {} lost {} life from casting a Phyrexian, now at {}." \
@@ -309,6 +306,9 @@ class Game():
 						)
 			else:
 				colored.append(mana)
+
+		if mana_to_tap[1] != None:
+			colorless = mana_to_tap[1]
 
 		while len(colored) > 0:
 			mana = colored[0]
@@ -613,20 +613,30 @@ class Game():
 		"""The index in self.players for the player whose turn it isn't. """
 		return (self.current_turn + 1) % 2
 
-	def draw_card(self, moving_player, card=None):
+	def draw_card(self, moving_player):
 		"""Add a card to moving_player's hand."""
 		new_card_class = None
 		current_player = self.get_players()[moving_player]
-		if card:
-			new_card_class = card
-		else:
-			new_card_class = eval(current_player.deck().pop())
+		new_card_class = current_player.deck().pop()
 		
-		new_card = new_card_class(
-			moving_player, 
-			self.new_card_id
-		)
-		new_card_state = new_card.state_repr()
+		if new_card_class in [
+				'SilhanaLedgewalker', 
+				'NettleSentinel',
+				'QuirionRanger',
+				'NestInvader',
+				'SkarrganPitSkulk',
+				'VaultSkirge',
+				'ElephantToken',
+				'BurningTreeEmissary',
+				'EldraziSpawnToken',
+			]:
+			new_card_state = Creature.get_tuple(new_card_class, moving_player, self.new_card_id, self.current_turn, False, False, False)
+		elif new_card_class in [
+				'VaultSkirge',
+			]:
+			new_card_state = Creature.get_tuple(new_card_class, moving_player, self.new_card_id, self.current_turn, True, False, True)
+		else:
+			new_card_state = Card.get_tuple(new_card_class, moving_player, self.new_card_id, self.current_turn)
 		current_player.hand.append(new_card_state)
 		self.new_card_id += 1
 
