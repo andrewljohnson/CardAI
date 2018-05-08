@@ -8,6 +8,7 @@ from src.bot import Bot
 from src.human import Human
 from src.monte_carlo_search_tree import MonteCarloSearchTreeBot
 from src.game import Game
+
 from src.statcache import StatCache
 
 def create_parser():
@@ -38,14 +39,20 @@ def main():
 		'Human'
 	]
 
-	game = Game()
-	game.print_moves = True
+	game_state = Game.new_game_state()
+	game_state = Game.set_print_moves(game_state, True)
+
+	statcache = StatCache()
+	statcache.past_states.append(game_state)
 
 	for pid in args.players:
-		bot = eval("{}".format(bots_types[pid]))(hit_points=args.starting_hit_points)
-		game.players.append(bot)
+		bot = eval("{}".format(bots_types[pid]))()
+		statcache.bots.append(bot)
 
-	game.play_out()
+		player_state = Game.new_player_state_object(hit_points=args.starting_hit_points)		
+		game_state = Game.add_player(game_state, player_state)
+
+	Game.play_out(game_state, statcache)
 
 
 if __name__ == "__main__":
