@@ -417,28 +417,7 @@ class Game():
 			state = Game.tap_lands_for_mana(state, mana_to_use)
 			state = Game.play_land_ability_move(state, move)
 		else:
-			if move[0] == 'initial_draw':
-				state = Game.initial_draw(state, move[1])
-			elif move[0] == 'draw_card':
-				state = Game.draw_card(state, move[1])
-			elif move[0] == 'finish_blocking':
-				state = Game.finish_blocking(state, move[1])
-			elif move[0] == 'declare_attack':
-				state = Game.declare_attack(state, move[1])
-			elif move[0] == 'resolve_combat':
-				state = Game.resolve_combat(state, move[1])
-			elif move[0] == 'no_attack':
-				state = Game.resolve_combat(state, move[1])
-			elif move[0] == 'pass_the_turn':
-				state = Game.pass_the_turn(state, move[1])
-			elif move[0] == 'pass_priority_as_defender':
-				state = Game.pass_priority_as_defender(state, move[1])
-			elif move[0] == 'pass_priority_as_attacker':
-				state = Game.pass_priority_as_attacker(state, move[1])
-			elif move[0] == 'announce_attackers':
-				state = Game.announce_attackers(state, move[1])
-			elif move[0] == 'assign_blockers':
-				state = Game.assign_blockers(state, move[1])
+			state = move_to_method[move[0]](state, move[1])
 
 		return state
 
@@ -1470,19 +1449,7 @@ class Game():
 			card_state = Game.get_lands(game_state)[card_index]
 			return "Tap {}".format(Card.display_name(card_state))
 		else:
-			if move_type == 'finish_blocking':
-				return "Finish Blocking"
-			elif move_type == 'declare_attack':
-				return "Declare Attack"
-			elif move_type == 'resolve_combat':
-				return "Resolve Combat"
-			elif move_type == 'no_attack':
-				return "No Attackers"
-			elif move_type == 'pass_the_turn':
-				return "Pass the Turn"
-			elif move_type == 'pass_priority_as_defender' or move_type == 'pass_priority_as_attacker':
-				return "Pass Priority"
-			elif move_type == 'announce_attackers':
+			if move_type == 'announce_attackers':
 				attackers = move[1]
 				attacker_names = []
 				for creature_id in attackers:
@@ -1497,6 +1464,32 @@ class Game():
 					blocker_state = Game.creature_with_id(game_state, creature_id)
 					blocker_names.append(Card.display_name(blocker_state))
 				return "Block {} with {}".format(Card.display_name(Game.creature_with_id(game_state, attacker)), ", ".join(blocker_names))
+			else:
+				return move_to_title[move_type]
 
 
-				return "Assign Blockers {}".format(move)
+move_to_method = {
+	'initial_draw': Game.initial_draw,
+	'draw_card': Game.draw_card,
+	'finish_blocking': Game.finish_blocking,
+	'declare_attack': Game.declare_attack,
+	'resolve_combat': Game.resolve_combat,
+	'no_attack': Game.resolve_combat,
+	'pass_the_turn': Game.pass_the_turn,
+	'pass_priority_as_defender': Game.pass_priority_as_defender,
+	'pass_priority_as_attacker': Game.pass_priority_as_attacker,
+	'announce_attackers': Game.announce_attackers,
+	'assign_blockers': Game.assign_blockers,
+}
+
+
+move_to_title = {
+	'finish_blocking': "Finish Blocking",
+	'declare_attack': "Declare Attack",
+	'resolve_combat': "Resolve Combat",
+	'no_attack': "No Attackers",
+	'pass_the_turn': "Pass the Turn",
+	'pass_priority_as_defender': "Pass Priority",
+	'pass_priority_as_attacker': "Pass Priority",
+}
+

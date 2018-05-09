@@ -140,7 +140,7 @@ class MonteCarloSearchTreeBot(Bot):
 			legal = legal_moves_cache[state]			
 
 			moves_states = []
-			play_randomly = True
+			play_randomly = False
 			
 			ended_game_for_move = {}
 			for p in legal:
