@@ -11,7 +11,7 @@ import pickle
 from game import Game
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, hit_points=0, max_moves=150, simulation_time=2, C=1.4):
+	def __init__(self, hit_points=0, max_moves=300, simulation_time=5, C=1.4):
 		"""
 			Adjust simulation_time and max_moves to taste.
 
@@ -37,16 +37,12 @@ class MonteCarloSearchTreeBot(Bot):
 
 	def play_move(self, game_state, statcache):
 		"""Play a move in game."""
-		move = self.get_play(statcache)
-		# print "GOT PLAY GOT PLAY {}".format(move)
 		first_moving = Game.player_with_priority(game_state) == 0
-		if move[0].startswith('ability') and first_moving:
-			print "starting in gs {}".format(decarded_state(game_state))
+		move = self.get_play(statcache)
+		# print "MCST playing {} for state {}".format(move, decarded_state(game_state))
+		old_gs = game_state
 		game_state = Game.apply_move(game_state, move)
-		if move[0].startswith('ability') and first_moving:
-			print "moving to gs {}".format(decarded_state(game_state))
 		statcache.past_states.append(game_state)
-		print "mcst played, states len now {}".format(len(statcache.past_states))
 		return move, game_state
 
 	def get_play(self, statcache):
@@ -80,7 +76,7 @@ class MonteCarloSearchTreeBot(Bot):
 			games += 1
 
 		first_moving = Game.player_with_priority(game_state) == 0
-		if first_moving:
+		if True or first_moving:
 			print "SIMULATED {} playouts/s ({} playouts)".format(games*1.0/self.simulation_time, games)
 
 
@@ -90,10 +86,12 @@ class MonteCarloSearchTreeBot(Bot):
 			print ERASE_LINE + CURSOR_UP_ONE
 		
 		moves_states = []
+		game_state = Game.set_print_moves(game_state, False)
 		for p in legal:
 			new_state = Game.apply_move(game_state, p)
 			new_state = decarded_state(new_state)
 			moves_states.append((p, tuple(new_state)))
+		game_state = Game.set_print_moves(game_state, True)
 
 		player = Game.acting_player(game_state)
 
@@ -104,27 +102,6 @@ class MonteCarloSearchTreeBot(Bot):
 			 p)
 			for p, S in moves_states
 		)
-		'''
-
-		for m in moves_states:
-			print m[1]
-
-		print statcache.bot_stats(pwp).plays
-		print "plays"
-
-		for w in statcache.bot_stats(pwp).plays:
-			print w[1]
-
-		print "wins and plays lens {} {}".format(len( statcache.bot_stats(pwp).wins),
-			len( statcache.bot_stats(pwp).plays))
-
-		print "plays"
-		for w in statcache.bot_stats(pwp).wins:
-			print statcache.bot_stats(pwp).wins[w]
-		'''
-
-
-		'''
 		if self.show_simulation_results:
 			# Display the stats for each possible play.
 			for x in sorted(
@@ -138,8 +115,8 @@ class MonteCarloSearchTreeBot(Bot):
 			):
 				print "{3}: {0:.2f}% ({1} / {2})".format(*x)
 		'''
+		'''
 
-		print "chose move {}".format(move)
 		return move
 
 	def run_simulation(self, statcache):
@@ -160,7 +137,6 @@ class MonteCarloSearchTreeBot(Bot):
 
 		expand = True
 		for t in xrange(1, self.max_moves + 1):
-			# print t
 			if state not in legal_moves_cache:
 				legal_moves_cache[state] = Game.legal_plays(state)		
 			legal = legal_moves_cache[state]			
@@ -194,10 +170,11 @@ class MonteCarloSearchTreeBot(Bot):
 				# Otherwise, just make an arbitrary decision.
 				move, state, ended_game = choice(moves_states)
 
-			# print "moving. {}".format(move)
 			# `player` here and below refers to the player
 			# who moved into that particular state.
 			state_clone = decarded_state(state)
+			# print "moving {}".format(move)
+			# print "moving {} to state {}".format(move, state_clone)
 
 			if expand and (player, state_clone) not in plays:
 				expand = False

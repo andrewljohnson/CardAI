@@ -38,6 +38,11 @@ def main():
 		'MonteCarloSearchTreeBot',
 		'Human'
 	]
+	bot_names = {
+		'Bot': 'random',
+		'MonteCarloSearchTreeBot': 'mcst',
+		'Human': 'You'
+	}
 
 	game_state = Game.new_game_state()
 	game_state = Game.set_print_moves(game_state, True)
@@ -49,7 +54,7 @@ def main():
 		bot = eval("{}".format(bots_types[pid]))()
 		statcache.bots.append(bot)
 
-		player_state = Game.new_player_state_object(hit_points=args.starting_hit_points)		
+		player_state = Game.new_player_state_object(hit_points=args.starting_hit_points, bot_type=bot_names[bots_types[pid]])		
 		game_state = Game.add_player(game_state, player_state)
 
 	Game.play_out(game_state, statcache)

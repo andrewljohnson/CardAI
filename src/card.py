@@ -228,6 +228,14 @@ class Card(object):
 		return game_state
 
 	@staticmethod
+	def pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
+		if Card.name(card_state) == 'QuirionRanger':
+			game_state = QuirionRanger.pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game)
+		elif Card.name(card_state) == 'EldraziSpawnToken':
+			game_state = EldraziSpawnToken.pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game)
+		return game_state
+
+	@staticmethod
 	def play(card_state, game_state, mana_to_use, target_creature_id, Game):
 		"""Returns [] if the player doesn't have enough mana, other returns the action to play the card."""
 		if Card.name(card_state) in ['Land', 'Forest', 'Mountain']:
@@ -963,6 +971,10 @@ class QuirionRanger(Creature):
 	'''
 
 	@staticmethod
+	def action_word(card_state):
+		return "Untap"
+
+	@staticmethod
 	def possible_ability_moves(card_state, game_state, Game):
 		if Creature.activated_ability(card_state):
 			return []
@@ -1002,12 +1014,28 @@ class QuirionRanger(Creature):
 	@staticmethod
 	def activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
 		"""Return a forest to player's hand and untap a creature."""
-		card_state = Creature.set_activated_ability(card_state, True)
 		for creature_state in Game.get_creatures(game_state):
 			if Card.id(creature_state) == target_creature_id:
 				creature_state = Creature.set_tapped(creature_state, False)
 				break
-		game_state = Game.set_creature_with_id(game_state, card_state, target_creature_id)
+		game_state = Game.set_creature_with_id(game_state, creature_state, target_creature_id)
+
+		if Game.print_moves(game_state):
+			pwp = Game.player_with_priority(game_state)
+			player = Game.get_player_states(game_state)[pwp]
+			print "> {} untapped {} with {}." \
+				.format(
+					Game.player_display_name(player, pwp), 
+					Card.name(creature_state), 
+					Card.name(card_state),
+				)
+
+		return game_state
+
+	@staticmethod
+	def pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
+		"""Return a forest to player's hand and untap a creature."""
+		card_state = Creature.set_activated_ability(card_state, True)
 
 		land_to_return = None
 		for land_state in Game.get_lands(game_state):
@@ -1019,11 +1047,10 @@ class QuirionRanger(Creature):
 		if Game.print_moves(game_state):
 			pwp = Game.player_with_priority(game_state)
 			player = Game.get_player_states(game_state)[pwp]
-			print "> {} untapped {} with {} returning {}." \
+			print "> {} used to {} return {}." \
 				.format(
 					Game.player_display_name(player, pwp), 
-					Card.name(creature_state), 
-					Card.name(card_state),
+					Card.name(card_state), 
 					Card.name(land_to_return),
 				)
 
@@ -1118,6 +1145,10 @@ class EldraziSpawnToken(Creature):
 	"""
 
 	@staticmethod
+	def action_word(card_state):
+		return "Sacrifice"
+
+	@staticmethod
 	def creature_types(self):
 		return ['Eldrazi', 'Token']
 
@@ -1136,7 +1167,7 @@ class EldraziSpawnToken(Creature):
 		]
 
 	@staticmethod
-	def activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
+	def pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
 		# print "eldrazi from gs {}".format(decarded_state(game_state))
 		if Creature.id(card_state) in Game.get_attackers(game_state):
 			game_state = Game.remove_attacker(game_state, Creature.id(card_state))
@@ -1180,6 +1211,10 @@ class EldraziSpawnToken(Creature):
 					Card.name(card_state), 
 				)
 		# print "EDLDRAZU to gs {}".format(decarded_state(game_state))
+		return game_state
+
+	@staticmethod
+	def activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
 		return game_state
 
 class SilhanaLedgewalker(Creature):
