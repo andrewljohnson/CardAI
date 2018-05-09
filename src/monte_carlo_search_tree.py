@@ -142,19 +142,17 @@ class MonteCarloSearchTreeBot(Bot):
 			moves_states = []
 			play_randomly = False
 			
-			ended_game_for_move = {}
 			for p in legal:
 				if (p[1], state) in plays:
-					ended_game_for_move[p] = Game.apply_move(state, p)
-					moves_states.append((p, ended_game_for_move[p], ended_game_for_move[p]))
+					new_state = Game.apply_move(state, p)
+					moves_states.append((p, new_state, new_state))
 				else:
 					play_randomly = True
 					break
 
 			if play_randomly:
 				move = choice(legal)
-				ended_game_for_move[move] = Game.apply_move(state, move)
-				state = ended_game_for_move[move]
+				state = Game.apply_move(state, move)
   			elif all(plays.get((player, S)) for p, S in moves_states):
 				# If we have stats on all of the legal moves here, use them.
 				log_total = log(
