@@ -1,17 +1,18 @@
 """Implements MCST, based on https://jeffbradberry.com/posts/2015/09/intro-to-monte-carlo-tree-search/"""
 
 import datetime
-from bot import Bot
-from math import log, sqrt
-from random import choice
-from copy import deepcopy
 import itertools, sys
 import pickle 
+from bot import Bot
+from copy import deepcopy
+from math import log, sqrt
+from random import choice
+from utils import decarded_state
 
 from game import Game
 
 class MonteCarloSearchTreeBot(Bot):
-	def __init__(self, hit_points=0, max_moves=300, simulation_time=5, C=1.4):
+	def __init__(self, hit_points=0, max_moves=300, simulation_time=2, C=1.4):
 		"""
 			Adjust simulation_time and max_moves to taste.
 
@@ -39,7 +40,6 @@ class MonteCarloSearchTreeBot(Bot):
 		"""Play a move in game."""
 		first_moving = Game.player_with_priority(game_state) == 0
 		move = self.get_play(statcache)
-		# print "MCST playing {} for state {}".format(move, decarded_state(game_state))
 		old_gs = game_state
 		game_state = Game.apply_move(game_state, move)
 		statcache.past_states.append(game_state)
@@ -55,14 +55,12 @@ class MonteCarloSearchTreeBot(Bot):
 		pwp = Game.player_with_priority(game_state)
 
 		legal = Game.legal_plays(game_state)
-		# print "CHOOSING FROM {} for state {}".format(legal, game_state)
 
 		# Bail out early if there is no real choice to be made.
 		if not legal:
 			return []
 		if len(legal) == 1:
 			return legal[0]
-			print "just one choice: {}".format(legal[0])
 
 		games = 0
 		begin = datetime.datetime.utcnow()
@@ -102,6 +100,7 @@ class MonteCarloSearchTreeBot(Bot):
 			 p)
 			for p, S in moves_states
 		)
+		'''
 		if self.show_simulation_results:
 			# Display the stats for each possible play.
 			for x in sorted(
@@ -115,18 +114,17 @@ class MonteCarloSearchTreeBot(Bot):
 			):
 				print "{3}: {0:.2f}% ({1} / {2})".format(*x)
 		'''
-		'''
 
 		return move
 
 	def run_simulation(self, statcache):
-		# print "STARTING SIM"
-		# A bit of an optimization here, so we have a local
-		# variable lookup instead of an attribute access each loop.
 		state = statcache.past_states[-1]
 		state = Game.set_print_moves(state, False)
 		pwp = Game.player_with_priority(state)
 		first_moving = Game.player_with_priority(state) == 0
+
+		# A bit of an optimization here, so we have a local
+		# variable lookup instead of an attribute access each loop.
 		plays, wins, legal_moves_cache = \
 			statcache.bot_stats(pwp).plays, \
 			statcache.bot_stats(pwp).wins,  \
@@ -196,27 +194,3 @@ class MonteCarloSearchTreeBot(Bot):
 			plays[(player, state)] += 1
 			if player == winner:
 				wins[(player, state)] += 1
-
-		#exit(0)
-
-
-def decarded_state(state_clone):
-	mutable_player = list(state_clone[4][0])
-	mutable_player[1] = ()
-	mutable_player[4] = ()
-
-	mutable_players = list(state_clone[4])
-	mutable_players[0] = tuple(mutable_player)
-
-	mutable_player = list(state_clone[4][1])
-	mutable_player[1] = ()
-	mutable_player[4] = ()
-
-	mutable_players[1] = tuple(mutable_player)
-
-	mutable_state = list(state_clone)
-	mutable_state[4] = tuple(mutable_players)
-	mutable_state[14] = True
-	return tuple(mutable_state)
-
-

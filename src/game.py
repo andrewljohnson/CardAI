@@ -4,14 +4,11 @@ import collections
 import itertools
 import json
 import pickle
-
 from card import Card, Creature, Land
-from card import Forest, QuirionRanger, NestInvader, BurningTreeEmissary, SkarrganPitSkulk, \
-	SilhanaLedgewalker, VaultSkirge, VinesOfVastwood, Rancor, ElephantGuide, HungerOfTheHowlpack, \
-	NettleSentinel
 from constants import *
 from random import choice, shuffle
 from statcache import StatCache
+from utils import decarded_state
 
 
 class Game():
@@ -328,9 +325,7 @@ class Game():
 		while not Game.game_is_over(game_state):
 			bot = statcache.bots[Game.player_with_priority(game_state)]
 			old_game_state = game_state
-			#print "GS BEFORE {}".format(decarded_state(game_state))
 			move, game_state = bot.play_move(game_state, statcache)
-			#print "MOVE {}, GS AFTER {} (equals before: {}".format(move, decarded_state(game_state), old_game_state==game_state)
 
 		winner, winning_hp, losing_hp = Game.winning_player(game_state)
 		if Game.print_moves(game_state):
@@ -1171,8 +1166,6 @@ class Game():
 	@staticmethod
 	def assign_blockers(game_state, block_tuple):
 		"""Set blockers according to block_tiple that maps an attacker to multiple bloickers."""
-		if Game.print_moves(game_state):
-			print "blockers before {}".format(Game.get_blockers(game_state))
 		game_state = Game.add_block(game_state, block_tuple)
 		for blocker in block_tuple[1]:
 			game_state = Game.add_blocker(game_state, blocker)
@@ -1185,8 +1178,6 @@ class Game():
 					Card.display_name(Game.creature_with_id(game_state, block_tuple[0])), 
 					", ".join([Card.display_name(Game.creature_with_id(game_state, cid)) for cid in block_tuple[1]])
 				)
-		if Game.print_moves(game_state):
-			print "blockers after {}".format(Game.get_blockers(game_state))
 		return game_state
 
 	@staticmethod
@@ -1274,8 +1265,6 @@ class Game():
 			if len(dead_creatures) == 0:
 				dead_names = "nothing"
 			pwp = Game.player_with_priority(game_state)
-			#if len(Game.get_attackers(game_state)) == 0:
-			#	print "No attack, savage feint dude!"
 			if total_attack > 0:
 				print "> {} attacked for {} (killed: {})." \
 					.format(Game.player_display_name(current_player, pwp),
@@ -1511,24 +1500,3 @@ class Game():
 
 
 				return "Assign Blockers {}".format(move)
-
-
-def decarded_state(state_clone):
-	mutable_player = list(state_clone[4][0])
-	mutable_player[1] = ()
-	mutable_player[4] = ()
-
-	mutable_players = list(state_clone[4])
-	mutable_players[0] = tuple(mutable_player)
-
-	mutable_player = list(state_clone[4][1])
-	mutable_player[1] = ()
-	mutable_player[4] = ()
-
-	mutable_players[1] = tuple(mutable_player)
-
-	mutable_state = list(state_clone)
-	mutable_state[4] = tuple(mutable_players)
-	mutable_state[14] = True
-	return tuple(mutable_state)
-

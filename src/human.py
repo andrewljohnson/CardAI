@@ -3,13 +3,13 @@
 from bot import Bot
 from card import Card
 from game import Game
+from utils import decarded_state
 
 
 class Human(Bot):
 	def play_move(self, game_state, statcache):
 		"""Plays the move in game that wins the most over the test iterations."""
 		legal_plays = Game.legal_plays(game_state)
-		#print "HUMAN CHOOSING from {} for state {}".format(legal_plays, game_state)
 		pwp = Game.player_with_priority(game_state)
 		sorted_plays = []
 
@@ -75,14 +75,11 @@ class Human(Bot):
 		else:
 			choice = 1
 
-		#print "Human playing move {} from state {}".format(sorted_plays[choice - 1], decarded_state(game_state))
 		game_state = Game.apply_move(game_state, sorted_plays[choice - 1])
 		statcache.past_states.append(game_state)
-		#print "Human playing move {} into state {}".format(sorted_plays[choice - 1], decarded_state(game_state))
 		return sorted_plays[choice - 1], game_state
 
 
-	# TODO FIX FOR SUBCLASS NOT WORKING FOR TUPLES
 	@staticmethod
 	def print_board(player_state, game_state, show_hand=True):
 		if len(Game.get_creatures(game_state)):
@@ -91,25 +88,3 @@ class Human(Bot):
 			Card.print_hand(Game.get_lands(game_state), owner=Game.get_player_states(game_state).index(player_state))
 		Card.print_hand(Bot.hand(player_state), show_hand=show_hand)
 		print "\n                         {} life - {} - Mana Pool: {}".format(Bot.hit_points(player_state), Bot.display_name(0), Bot.temp_mana(player_state))
-
-
-def decarded_state(state_clone):
-	mutable_player = list(state_clone[4][0])
-	mutable_player[1] = ()
-	mutable_player[4] = ()
-
-	mutable_players = list(state_clone[4])
-	mutable_players[0] = tuple(mutable_player)
-
-	mutable_player = list(state_clone[4][1])
-	mutable_player[1] = ()
-	mutable_player[4] = ()
-
-	mutable_players[1] = tuple(mutable_player)
-
-	mutable_state = list(state_clone)
-	mutable_state[4] = tuple(mutable_players)
-	mutable_state[14] = True
-	return tuple(mutable_state)
-
-

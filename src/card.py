@@ -1,6 +1,7 @@
+import sys
 from constants import *
 from re import finditer
-import sys
+from utils import decarded_state
 
 
 """Card encapsulates the actions of a fantasy card."""
@@ -1168,7 +1169,6 @@ class EldraziSpawnToken(Creature):
 
 	@staticmethod
 	def pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
-		# print "eldrazi from gs {}".format(decarded_state(game_state))
 		if Creature.id(card_state) in Game.get_attackers(game_state):
 			game_state = Game.remove_attacker(game_state, Creature.id(card_state))
 		if Creature.id(card_state) in Game.get_blockers(game_state):
@@ -1195,10 +1195,8 @@ class EldraziSpawnToken(Creature):
 
 		pwp = Game.player_with_priority(game_state)
 		acting_player = Game.get_player_states(game_state)[pwp]
-		#print "adding temp mana to {}".format(Game.temp_mana(acting_player))
 		game_state = Game.add_temp_mana(game_state, pwp, (1, ))
 		acting_player = Game.get_player_states(game_state)[pwp]
-		#print "now has temp mana to {}".format(Game.temp_mana(acting_player))
 		game_state = Game.set_creature_died_this_turn(game_state, True)
 		game_state = Card.on_graveyard(card_state, game_state, Game)
 		for e in Creature.enchantments(card_state):
@@ -1210,7 +1208,6 @@ class EldraziSpawnToken(Creature):
 					Game.player_display_name(player, pwp), 
 					Card.name(card_state), 
 				)
-		# print "EDLDRAZU to gs {}".format(decarded_state(game_state))
 		return game_state
 
 	@staticmethod
@@ -1454,25 +1451,3 @@ defense_bonus_map = {
 	'ElephantGuide': 3,
 	'Rancor': 0,
 }
-
-
-def decarded_state(state_clone):
-	mutable_player = list(state_clone[4][0])
-	mutable_player[1] = ()
-	mutable_player[4] = ()
-
-	mutable_players = list(state_clone[4])
-	mutable_players[0] = tuple(mutable_player)
-
-	mutable_player = list(state_clone[4][1])
-	mutable_player[1] = ()
-	mutable_player[4] = ()
-
-	mutable_players[1] = tuple(mutable_player)
-
-	mutable_state = list(state_clone)
-	mutable_state[4] = tuple(mutable_players)
-	mutable_state[14] = True
-	return tuple(mutable_state)
-
-
