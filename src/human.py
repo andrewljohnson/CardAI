@@ -3,12 +3,14 @@
 from bot import Bot
 from card import Card
 from game import Game
+from utils import decarded_state
 
 
 class Human(Bot):
-	def play_move(self, game):
+	def play_move(self, game_state, statcache):
 		"""Plays the move in game that wins the most over the test iterations."""
-		legal_plays = game.legal_plays(game.states)
+		legal_plays = Game.legal_plays(game_state)
+		pwp = Game.player_with_priority(game_state)
 		sorted_plays = []
 
 		for p in legal_plays:
@@ -19,8 +21,8 @@ class Human(Bot):
 			for p in legal_plays:
 				card_index = p[1]
 				if p[0].startswith("card"):
-					card = game.get_players()[game.player_with_priority].get_hand()[card_index]
-					if card.card_type == card_type:
+					card = Game.get_hand(game_state, pwp)[card_index]
+					if Card.card_type(card) == card_type:
 						sorted_plays.append(p)
 
 		attacks = []
@@ -34,8 +36,8 @@ class Human(Bot):
 		for p in legal_plays:
 			card_index = p[1]
 			if p[0].startswith("card"):
-				card = game.get_players()[game.player_with_priority].get_hand()[card_index]
-				if card.card_type not in ["creature", "land", "enchantment"]:
+				card = Game.get_hand(game_state, pwp)[card_index]
+				if Card.card_type(card) not in ["creature", "land", "enchantment"]:
 					sorted_plays.append(p)
 
 		for p in legal_plays:
@@ -49,9 +51,9 @@ class Human(Bot):
 		if len(sorted_plays) > 1:
 			for counter, play in enumerate(sorted_plays):
 				if counter == len(sorted_plays) - 1 and play[0] == "pass_the_turn": 
-					print "  return: {}".format(game.move_display_string(play))
+					print "  return: {}".format(Game.move_display_string(game_state, play))
 				else:
-					print "  {}: {}".format(counter + 1, game.move_display_string(play))
+					print "  {}: {}".format(counter + 1, Game.move_display_string(game_state, play))
 
 			print "  p: Print your hand and the game board."
 			
@@ -59,9 +61,8 @@ class Human(Bot):
 			while not answered:
 				choice = raw_input("Type the number of the action you want to play: ")
 				if choice == 'p' or choice == 'P':
-					game.print_board(show_opponent_hand=False);
-					self.play_move(game)
-					return
+					Game.print_board(game_state, show_opponent_hand=False);
+					return self.play_move(game_state, statcache)
 				elif (not choice) and sorted_plays[-1][0] == "pass_the_turn":
 					choice = len(sorted_plays)				
 					answered = True
@@ -70,22 +71,20 @@ class Human(Bot):
 					if choice >= 1 and choice < len(sorted_plays) + 1:
 						answered = True
 				else:
-					self.play_move(game)
-					return					
+					return self.play_move(game_state, statcache)					
 		else:
 			choice = 1
 
-		game.next_state(None, sorted_plays[choice - 1], game=game)
+		game_state = Game.apply_move(game_state, sorted_plays[choice - 1])
+		statcache.past_states.append(game_state)
+		return sorted_plays[choice - 1], game_state
 
 
-	def display_name(self, current_player):
-		return "You"
-
-
-	def print_board(self, game, show_hand=True):
-		if len(game.creatures):
-			Card.print_hand(game.get_creatures(), owner=game.get_players().index(self))
-		if len(game.lands):
-			Card.print_hand(game.get_lands(), owner=game.get_players().index(self))
-		Card.print_hand(self.get_hand(), show_hand=show_hand)
-		print "\n                         {} life - {} - Mana Pool: {}".format(self.hit_points, self.display_name(0), self.temp_mana)
+	@staticmethod
+	def print_board(player_state, game_state, show_hand=True):
+		if len(Game.get_creatures(game_state)):
+			Card.print_hand(Game.get_creatures(game_state), owner=Game.get_player_states(game_state).index(player_state))
+		if len(Game.get_lands(game_state)):
+			Card.print_hand(Game.get_lands(game_state), owner=Game.get_player_states(game_state).index(player_state))
+		Card.print_hand(Bot.hand(player_state), show_hand=show_hand)
+		print "\n                         {} life - {} - Mana Pool: {}".format(Bot.hit_points(player_state), Bot.display_name(0), Bot.temp_mana(player_state))

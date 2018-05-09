@@ -1,6 +1,7 @@
+import sys
 from constants import *
 from re import finditer
-import sys
+from utils import decarded_state
 
 
 """Card encapsulates the actions of a fantasy card."""
@@ -8,42 +9,59 @@ import sys
 class Card(object):
 	"""A fantasy card instance."""
 
-	def __init__(self, owner, card_id, tapped=False, turn_played=False):	
-		"""Set the initial card_id and owner."""	
-		self.id = card_id
-
-		# the player_number of the owner
-		self.owner = owner
-
-		# whether the card is in tapped, only applies to permanents in play
-		self.tapped = tapped
-
-		# what turn number teh card last came into play
-		self.turn_played = turn_played
-
-		# "instant" or "creature" or "land"
-		self.card_type = None
-
 	@staticmethod
 	def class_for_name(name):
 		"""Return a dict mapping card name to class."""	
 		return class_map[name]
 
 	@staticmethod
-	def card_for_state(state):
-		return Card.class_for_name(state[0])(state[1], state[2], tapped=state[3], turn_played=state[4])
-
-	def state_repr(self):
+	def get_tuple(classname, owner, new_id, turn_played, card_type=None):
 		"""Return a hashable tuple representing the Card."""
 		return (
-			self.__class__.__name__,
-			self.owner, 
-			self.id, 
-			self.tapped, 
-			self.turn_played, 
+			classname,
+			owner, 
+			new_id, 
+			False, # tapped 
+			turn_played, 
+			name_to_card_type[classname], 
 		)
 
-	def ascii_image(self, show_back=False):
+	@staticmethod
+	def owner(card_state):
+		return card_state[1]
+
+	@staticmethod
+	def name(card_state):
+		return card_state[0]
+
+	@staticmethod
+	def id(card_state):
+		return card_state[2]
+
+	@staticmethod
+	def tapped(card_state):
+		return card_state[3]
+
+	@staticmethod
+	def turn_played(card_state):
+		return card_state[4]
+
+	@staticmethod
+	def card_type(card_state):
+		return card_state[5]
+
+	@staticmethod
+	def set_turn_played(card_state, current_turn):
+		mutable_tuple = list(card_state)
+		mutable_tuple[4] = current_turn
+		return tuple(mutable_tuple)
+
+	@staticmethod
+	def total_mana_cost(card_state):
+		return name_to_mana_cost[Card.name(card_state)]
+
+	@staticmethod
+	def ascii_image(card_state, show_back=False):
 		cols = 11
 		rows = 5
 		image_grid = []
@@ -77,13 +95,13 @@ class Card(object):
 		
 		if not show_back:
 			cc_row = 1
-			cc_string = self.casting_cost_string()
+			cc_string = Card.casting_cost_string(card_state)
 			for x in range(initial_index, len(cc_string) + initial_index):
 				image_grid[cc_row][x] = cc_string[x-initial_index]
 
 		if not show_back:
 			name_row = 2
-			words = self.display_name().split(" ")
+			words = Card.display_name(card_state).split(" ")
 			for word in words:
 				word_width = min(3, len(word))
 				if len(words) == 1:
@@ -95,22 +113,30 @@ class Card(object):
 					break
 
 		if not show_back:
-			if issubclass(self.__class__, Creature):
+			if Card.name(card_state) in [
+				'SilhanaLedgewalker', 
+				'NettleSentinel',
+				'QuirionRanger',
+				'SkarrganPitSkulk',
+				'NestInvader',
+				'VaultSkirge',
+				'ElephantToken',
+				'BurningTreeEmissary',
+				'EldraziSpawnToken',
+			]:
 				initial_index = 2
 				stats_row = 3
-				stats_string = "{}/{}".format(self.total_damage(), self.total_hit_points())
+				stats_string = "{}/{}".format(Creature.total_damage(card_state), Creature.total_hit_points(card_state))
 				for x in range(initial_index, len(stats_string) + initial_index):
 					image_grid[stats_row][x] = stats_string[x-initial_index]
 
 		if not show_back:
-			if self.tapped:
+			if Card.tapped(card_state):
 				tapped_row = 0
 				initial_index = 0
 				tapped_string = "TAPPED"
 				for x in range(initial_index, len(tapped_string) + initial_index):
 					image_grid[tapped_row][x] = tapped_string[x-initial_index]
-
-
 
 		return image_grid
 
@@ -118,9 +144,9 @@ class Card(object):
 	def print_hand(cards, owner=None, show_hand=True):
 		images = []
 		for c in cards:
-			if owner != None and c.owner != owner:
+			if owner != None and Card.owner(c) != owner:
 				continue
-			images.append(c.ascii_image(show_back=(not show_hand)))
+			images.append(Card.ascii_image(c, show_back=(not show_hand)))
 		if len(images) == 0:
 			return
 		row_to_print = 0
@@ -135,278 +161,391 @@ class Card(object):
 			print ''
 			row_to_print += 1
 
-	def adjust_for_untap_phase(self):
-		self.tapped = False
+	@staticmethod
+	def set_tapped(card_state, tapped):
+		mutable_tuple = list(card_state)
+		mutable_tuple[3] = tapped
+		return tuple(mutable_tuple)
 
-	def react_to_spell(self, card):
-		pass
+	@staticmethod
+	def set_temp_strength(card_state, strength):
+		mutable_tuple = list(card_state)
+		mutable_tuple[7] = strength
+		return tuple(mutable_tuple)
 
-	def adjust_for_end_turn(self):
-		pass
+	@staticmethod
+	def set_temp_hit_points(card_state, hit_points):
+		mutable_tuple = list(card_state)
+		mutable_tuple[8] = hit_points
+		return tuple(mutable_tuple)
 
-	def total_mana_cost(self):
-		return ()
+	@staticmethod
+	def set_temp_targettable(card_state, targettable):
+		mutable_tuple = list(card_state)
+		mutable_tuple[9] = targettable
+		return tuple(mutable_tuple)
 
-	def mana_cost(self):
+	@staticmethod
+	def set_activated_ability(card_state, activated):
+		mutable_tuple = list(card_state)
+		mutable_tuple[10] = activated
+		return tuple(mutable_tuple)
+
+	@staticmethod
+	def adjust_for_untap_phase(card_state):
+		if Card.name(card_state) == 'QuirionRanger':
+			card_state = Card.set_activated_ability(card_state, False)
+
+		if Card.name(card_state) != 'NettleSentinel':
+			card_state = Card.set_tapped(card_state, False)
+		return card_state
+
+	@staticmethod
+	def react_to_spell(game_state, reacting_card, spell, Game):
+		if Card.name(reacting_card) == "NettleSentinel":
+			return NettleSentinel.react_to_spell(game_state, reacting_card, spell, Game)
+		return game_state
+
+	@staticmethod
+	def adjust_for_end_turn(card_state):
+		return card_state
+
+	@staticmethod
+	def mana_cost(card_state):
 		colorless = 0
-		for mana in self.total_mana_cost():
-			if isinstance(mana, int):
-				colorless += mana
-			else:
-				colorless += 1
+		mana_cost = Card.total_mana_cost(card_state)
+		for mana in mana_cost[0]:
+			colorless += 1
+		if mana_cost[1] != None:
+			colorless += mana_cost[1]
 		return colorless
 
-	def possible_moves(self, game):
+	@staticmethod
+	def activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
+		if Card.name(card_state) == 'QuirionRanger':
+			game_state = QuirionRanger.activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game)
+		elif Card.name(card_state) == 'EldraziSpawnToken':
+			game_state = EldraziSpawnToken.activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game)
+		return game_state
+
+	@staticmethod
+	def pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
+		if Card.name(card_state) == 'QuirionRanger':
+			game_state = QuirionRanger.pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game)
+		elif Card.name(card_state) == 'EldraziSpawnToken':
+			game_state = EldraziSpawnToken.pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game)
+		return game_state
+
+	@staticmethod
+	def play(card_state, game_state, mana_to_use, target_creature_id, Game):
 		"""Returns [] if the player doesn't have enough mana, other returns the action to play the card."""
-		available_mana = game.available_mana()
-		total_mana = 0
-		for color, count in available_mana.iteritems():
-			total_mana += count
-		if total_mana >= self.mana_cost():
-			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
-			return [('card-{}'.format(self.__class__.__name__), 
-					card_index, 
-					self.total_mana_cost(), 
-					None,
-					None,
-					game.player_with_priority)]
-		return []
+		if Card.name(card_state) in ['Land', 'Forest', 'Mountain']:
+			return Land.play(card_state, game_state, mana_to_use, target_creature_id, Game)
+		elif Card.name(card_state) == 'VinesOfVastwood':
+			return VinesOfVastwood.play(card_state, game_state, mana_to_use, target_creature_id, Game)
+		elif Card.name(card_state) == 'HungerOfTheHowlpack':
+			return HungerOfTheHowlpack.play(card_state, game_state, mana_to_use, target_creature_id, Game)
+		elif Card.name(card_state) == 'Fireball':
+			return Fireball.play(card_state, game_state, mana_to_use, target_creature_id, Game)
+		elif Card.name(card_state) in [
+			'SilhanaLedgewalker', 
+			'NettleSentinel',
+			'QuirionRanger',
+			'VaultSkirge']:
+			return Creature.play(card_state, game_state, mana_to_use, target_creature_id, Game)
+		elif Card.name(card_state) == 'BurningTreeEmissary':
+			return BurningTreeEmissary.play(card_state, game_state, mana_to_use, target_creature_id, Game)
+		elif Card.name(card_state) == 'SkarrganPitSkulk':
+			return SkarrganPitSkulk.play(card_state, game_state, mana_to_use, target_creature_id, Game)
+		elif Card.name(card_state) == 'NestInvader':
+			return NestInvader.play(card_state, game_state, mana_to_use, target_creature_id, Game)
+		elif Card.name(card_state) in ['Rancor', 'ElephantGuide']:
+			return CreatureEnchantment.play(card_state, game_state, mana_to_use, target_creature_id, Game)
 
-	def display_name(self):
-		"""Split the name on uppercase letter and add spaces."""
-		matches = finditer('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)',self.__class__.__name__)
-		return " ".join([m.group(0) for m in matches])
 
-	def action_word(self):
+	@staticmethod
+	def possible_moves(card_state, game_state, Game):
+		"""Returns [] if the player doesn't have enough mana, other returns the action to play the card."""
+		if Card.name(card_state) in ['Land', 'Forest', 'Mountain']:
+			return Land.possible_moves(card_state, game_state, Game)
+		elif Card.name(card_state) == 'VinesOfVastwood':
+			return VinesOfVastwood.possible_moves(card_state, game_state, Game)
+		elif Card.name(card_state) == 'HungerOfTheHowlpack':
+			return HungerOfTheHowlpack.possible_moves(card_state, game_state, Game)
+		elif Card.name(card_state) == 'Fireball':
+			return Fireball.possible_moves(card_state, game_state, Game)
+		elif Card.name(card_state) in [
+			'SilhanaLedgewalker', 
+			'NettleSentinel',
+			'QuirionRanger',
+			'SkarrganPitSkulk',
+			'NestInvader']:
+			return Creature.possible_moves(card_state, game_state, Game)
+		elif Card.name(card_state) == 'VaultSkirge':
+			return VaultSkirge.possible_moves(card_state, game_state, Game)
+		elif Card.name(card_state) == 'BurningTreeEmissary':
+			return BurningTreeEmissary.possible_moves(card_state, game_state, Game)
+		elif Card.name(card_state) == 'ElephantGuide':
+			return CreatureEnchantment.possible_moves(card_state, game_state, Game)
+		elif Card.name(card_state) == 'Rancor':
+			return Rancor.possible_moves(card_state, game_state, Game)
+
+	@staticmethod
+	def display_name(card_state, display_stats=True):
+		name = None
+		if Card.name(card_state) == "BurningTreeEmissary":
+			name = "Burning-Tree Emissary"
+		else:
+			"""Split the name on uppercase letter and add spaces."""
+			matches = finditer('.+?(?:(?<=[a-z])(?=[A-Z])|(?<=[A-Z])(?=[A-Z][a-z])|$)',Card.name(card_state))
+			name = " ".join([m.group(0) for m in matches])
+
+		if Card.name(card_state) in [ # creatures get stats added
+			"SilhanaLedgewalker",
+			'NettleSentinel',
+			'QuirionRanger',
+			'SkarrganPitSkulk',
+			'NestInvader',
+			'VaultSkirge',
+			'ElephantToken',
+			'EldraziSpawnToken',
+			]:
+			name += " ({}/{})".format(Creature.total_damage(card_state), Creature.total_hit_points(card_state))
+		return name
+
+	@staticmethod
+	def action_word(card_state):
+		if Card.name(card_state) == "QuirionRanger":
+			return QuirionRanger.action_word(card_state)
+		elif Card.name(card_state) == "EldraziSpawnToken":
+			return EldraziSpawnToken.action_word(card_state)
 		return "Use"
 
-	def casting_cost_string(self, move=None):
+	@staticmethod
+	def casting_cost_string(card_state, move=None):
 		casting_cost = ""
-		cc = move[2] if move else self.total_mana_cost()
-		for c in cc:
-			if type(c) == int:
-				casting_cost += str(c)
-			elif 'L' in c:
+		cc = move[2] if move else Card.total_mana_cost(card_state)
+		casting_cost = str(cc[1])
+		if casting_cost == 'None':
+			casting_cost = ''
+		for c in cc[0]:
+			if 'L' in c:
 				casting_cost += " and {} life".format(c.split('L')[1])
 			elif type(c) == str:
 				casting_cost += c
 		return casting_cost
 
-	def cast_moves(self, game, card_index):
-		if len(self.possible_moves(game)) > 0:
+	@staticmethod
+	def cast_moves(card_state, game_state, card_index, Game):
+		if len(Card.possible_moves(card_state, game_state, Game)) > 0:
 			return [('card-cast-{}'.format(
-				self.__class__.__name__), 
+				Card.name(card_state)), 
 				card_index, 
 				(), 
 				None,
 				None,
-				game.player_with_priority)]
+				Game.player_with_priority(game_state))]
 		return []
 
-	def on_graveyard(self, game):
-		"""Only affects a few cards."""
-		pass
+	@staticmethod
+	def on_graveyard(card_state, game_state, Game):
+		if Card.name(card_state) == 'Rancor':
+			game_state = Game.add_card_to_hand(game_state, card_state)
+		elif Card.name(card_state) == 'ElephantGuide':
+			pwp = Card.owner(card_state)
+			token_state = Creature.get_tuple(
+				'ElephantToken', 
+				pwp, 
+				Game.get_new_card_id(game_state), 
+				Game.get_current_turn(game_state)
+			)
+			game_state = Game.increment_new_card_id(game_state)
+			game_state = Game.add_card_to_hand(game_state, token_state)
+			game_state = Creature.play(token_state, game_state, 0, None, Game)
+
+		return game_state
 
 
 class Land(Card):
 	"""A card that produces any color mana."""
 
-	def __init__(self, owner, card_id, tapped=False, turn_played=None):
-		super(Land, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
-		self.card_type = "land"
+	@staticmethod
+	def possible_moves(card_state, game_state, Game):
+		"""Returns [] if the player already played a land, other returns the action to play tapped."""
+		if Game.played_land(game_state):
+			return []
+		pwp = Game.player_with_priority(game_state)
+		card_index = Game.get_hand(game_state, pwp).index(card_state)
+		return [('card-{}'.format(
+			Card.name(card_state)), 
+			card_index, 
+			((), None, ), 
+			None,
+			None,
+			pwp)]
 
 	@staticmethod
-	def land_for_state(state):
-		classname = state[0]
-		# eval is slow
-		'''
-		land = eval("{}".format(classname))(
-			state[1],
-			state[2], 
-			tapped=state[3],
-			turn_played=state[4],
-		)
-		'''
-		if classname == 'Forest':
-			return Forest(
-				state[1],
-				state[2], 
-				tapped=state[3],
-				turn_played=state[4],
-			)
-		return Mountain(
-			state[1],
-			state[2], 
-			tapped=state[3],
-			turn_played=state[4],
-		)
+	def play(land_state, game_state, mana_to_use, target_creature_id, Game):
+		"""Remove this from the player's hand and add it to game_state lands."""
+		pwp = Game.player_with_priority(game_state)
+		player = Game.get_player_states(game_state)[pwp]
+		game_state = Game.remove_card_from_hand(game_state, pwp, land_state)
 
-	def state_repr(self):
-		"""Return a hashable tuple representing the Land."""
-		return (
-			self.__class__.__name__,
-			self.owner, 
-			self.id, 
-			self.tapped, 
-			self.turn_played, 
-		)
-
-	def possible_moves(self, game):
-		"""Returns [] if the player already played a land, other returns the action to play tapped."""
-		if game.played_land():
-			return []
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
-		return [('card-{}'.format(
-			self.__class__.__name__), 
-			card_index, 
-			(), 
-			None,
-			None,
-			game.player_with_priority)]
-
-	def play(self, game, mana_to_use, target_creature_id):
-		"""Remove this from the player's hand and add it to game.lands."""
-		self.turn_played = game.current_turn
-		game.get_lands().append(self)
-		player = game.get_players()[game.player_with_priority]
-		player.get_hand().remove(self)
-		if game.print_moves:
+		land_state = Card.set_turn_played(land_state, Game.get_current_turn(game_state))
+		game_state = Game.add_land(game_state, land_state)
+		if Game.print_moves(game_state):
 			print "> {} played a {}." \
-				.format(player.display_name(game.player_with_priority), self.__class__.__name__, self.id, )
+				.format(Game.player_display_name(player, pwp), Card.name(land_state), Card.owner(land_state), )
+		return game_state
 
-	def mana_provided(self):
-		"""The amount and kind of mana provided."""
-		return {'BUGRW': 1}
+	@staticmethod
+	def return_to_hand(game_state, land_state, Game):
+		pwp = Card.owner(land_state)
+		game_state = Game.remove_land(game_state, land_state)
+		land_state = Card.set_tapped(land_state, False)
+		game_state = Game.add_card_to_hand(game_state, land_state)
+		return game_state
 
-	def return_to_hand(self, game):
-		game.get_players()[self.owner].get_hand().append(self)
-		self.tapped = False
-		game.get_lands().remove(self)
-
-
-	def possible_ability_moves(self, game):
-		if self.tapped == True:
+	@staticmethod
+	def possible_ability_moves(card_state, game_state, Game):
+		if Card.tapped(card_state) == True:
 			return []
 		return [
 			(
-				'land_ability-{}'.format(self.__class__.__name__), 
-				game.get_lands().index(self), 
-				(), 
+				'land_ability-{}'.format(Card.name(card_state)), 
+				Game.get_lands(game_state).index(card_state), 
+				((), None, ), 
 				None, 
 				None,
-				game.player_with_priority
+				Game.player_with_priority(game_state)
 			)
 		 ]
 
-	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id):
-		self.tapped = True
-		player = game.get_players()[game.player_with_priority]
-		player.temp_mana += list(self.mana_provided_list())
-		if game.print_moves:
+	@staticmethod
+	def activate_ability(card_state, game_state, Game):
+		pwp = Game.player_with_priority(game_state)
+		game_state = Game.set_land_tapped(game_state, card_state, True)
+		game_state = Game.add_temp_mana(game_state, pwp, Land.mana_provided_list(card_state))
+		if Game.print_moves(game_state):
+			player_state = Game.get_player_states(game_state)[pwp]
 			print "> {} tapped {} for {}, has {} floating." \
 				.format(
-					player.display_name(game.player_with_priority), 
-					self.__class__.__name__, 
-					self.mana_provided_list(),
-					player.temp_mana,
-					game.player_with_priority
-
+					Game.player_display_name(player_state, pwp), 
+					Card.name(card_state), 
+					Land.mana_provided_list(card_state),
+					Game.temp_mana(player_state),
 				)
+		return game_state
+
+	@staticmethod
+	def mana_provided(land_state):
+		return mana_provided_map[Card.name(land_state)]
+
+	@staticmethod
+	def mana_provided_list(land_state):
+		return mana_provided_list_map[Card.name(land_state)]
 
 class Forest(Land):
 	"""A card that produces green mana."""
 
-	def mana_provided_list(self):
-		"""The amount and kind of mana provided."""
-		return ('G', )
-
-	def mana_provided(self):
-		"""The amount and kind of mana provided."""
-		return {'G': 1}
+	pass
 
 
 class Mountain(Land):
 	"""A card that produces red mana."""
 
-	def mana_provided_list(self):
-		"""The amount and kind of mana provided."""
-		return ('R', )
-
-	def mana_provided(self):
-		"""The amount and kind of mana provided."""
-		return {'R': 1}
+	pass
 
 
 class VinesOfVastwood(Card):
 	"""A card that buffs a creature."""
 
-	def __init__(self, owner, card_id, tapped=False, turn_played=None):
-		super(VinesOfVastwood, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
-		self.card_type = 'instant'
-
-	def total_mana_cost(self):
-		return ('G', )
-
-	def possible_moves(self, game):
+	@staticmethod
+	def possible_moves(card_state, game_state, Game):
 		"""Returns possible VinesOfVastwood targets."""
-		available_mana = game.available_mana()
+		available_mana = Game.available_mana(game_state)
 		possible_moves = []
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
+		pwp = Game.player_with_priority(game_state)
+		card_index = Game.get_hand(game_state, pwp).index(card_state)
 		
 		green_count = 0
 		for color, count in available_mana.iteritems():
 			if type (color) == str and 'G' in color:
 				green_count += count
 
-		for c in game.get_creatures():
-			if not c.targettable:
+		for creature_state in Game.get_creatures(game_state):
+			if not Creature.targettable(creature_state):
 				continue
-			if c.hexproof and c.owner != game.player_with_priority:
+			if Creature.hexproof(creature_state) and Card.owner(creature_state) != pwp:
 				continue
 			if green_count > 0:
 				possible_moves.append(
-					('card-{}'.format(self.__class__.__name__), 
+					('card-{}'.format(Card.name(creature_state)), 
 					card_index, 
-					('G', ), 
-					c.id,
+					(('G', ), None), 
+					Card.id(creature_state),
 					None,
-					game.player_with_priority))
+					pwp))
 			if green_count > 1:
 				possible_moves.append(
-					('card-{}'.format(self.__class__.__name__), 
+					('card-{}'.format(Card.name(creature_state)), 
 					card_index, 
-					('G', 'G'), 
-					c.id,
+					(('G', 'G',), None), 
+					Card.id(creature_state),
 					None,
-					game.player_with_priority))
+					pwp))
 
 		return possible_moves
 
-	def play(self, game, mana_to_use, target_creature_id):
+	@staticmethod
+	def play(card_state, game_state, mana_to_use, target_creature_id, Game):
 		"""Pump a creature based on how much mana is used."""
-		creature = game.creature_with_id(target_creature_id)
-		if not creature:  # it died
-			if game.print_moves:
+		target_creature_state = Game.creature_with_id(game_state, target_creature_id)
+		if not target_creature_state:  # it died
+			if Game.print_moves(game_state):
 				print "VinesOfVastwood fizzled, no creature with id {}.".format(target_creature_id)
 			return
-		creature.temp_targettable = False
-		caster = game.get_players()[self.owner]
+
+		target_creature_state = Card.set_temp_targettable(target_creature_state, False)
+		game_state = Game.set_creature_with_id(game_state, target_creature_state, target_creature_id)
+
+		new_creatures = []
+		for creature_state in Game.get_creatures(game_state):
+			if Card.id(creature_state) == Card.id(target_creature_state):
+				new_creatures.append(target_creature_state)
+			else:
+				new_creatures.append(creature_state)
+		game_state = Game.set_creatures(game_state, tuple(new_creatures))
+
 		if mana_to_use == ('G', 'G'):
-			creature.temp_strength += 4
-			creature.temp_hit_points += 4
-		caster.get_hand().remove(self)
-		if game.print_moves:
+			target_creature_state = Creature.increment_temp_strength(target_creature_state, 4)
+			target_creature_state = Creature.increment_temp_hit_points(target_creature_state, 4)
+			game_state = Game.set_creature_with_id(game_state, target_creature_state, target_creature_id)
+
+			new_creatures = []
+			for creature_state in Game.get_creatures(game_state):
+				if Card.id(creature_state) == Card.id(target_creature_state):
+					new_creatures.append(target_creature_state)
+				else:
+					new_creatures.append(creature_state)
+			game_state = Game.set_creatures(game_state, tuple(new_creatures))
+
+		pwp = Card.owner(card_state)
+		game_state = Game.remove_card_from_hand(game_state, pwp, card_state)
+		if Game.print_moves(game_state):
+			caster_state = Game.get_player_states(game_state)[pwp]
 			if mana_to_use == ('G', ):
 				print "> {} played VinesOfVastwood on {}." \
 					.format(
-						caster.display_name(game.player_with_priority), 
-						creature.__class__.__name__)
+						BoGamet.player_display_name(caster_state, pwp), 
+						Creature.name(target_creature_state))
 			else:
 				print "> {} played kicked VinesOfVastwood on {}, total power now {}." \
 					.format(
-						caster.display_name(game.player_with_priority), 
-						creature.__class__.__name__,
-						creature.total_damage())
+						Game.player_display_name(caster_state, pwp), 
+						Creature.name(target_creature_state),
+						Creature.total_damage(target_creature_state))
+		return game_state
 
 
 class HungerOfTheHowlpack(Card):
@@ -414,18 +553,13 @@ class HungerOfTheHowlpack(Card):
 		Put a +1/+1 counter on target creature.
 		Morbid - Put three +1/+1 counters on that creature instead if a creature died this turn.
 	"""
-	def __init__(self, owner, card_id, tapped=False, turn_played=None):
-		super(HungerOfTheHowlpack, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
-		self.card_type = 'instant'
 
-	def total_mana_cost(self):
-		return ('G', )
-
-	def possible_moves(self, game):
+	@staticmethod
+	def possible_moves(card_state, game_state, Game):
 		"""Returns possible VinesOfVastwood targets."""
-		available_mana = game.available_mana()
+		available_mana = Game.available_mana(game_state)
 		possible_moves = []
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
+		pwp = Game.player_with_priority(game_state)
 		
 		green_count = 0
 		for color, count in available_mana.iteritems():
@@ -434,54 +568,70 @@ class HungerOfTheHowlpack(Card):
 					green_count += count
 					break
 
-		for c in game.get_creatures():
-			if not c.targettable:
+		for creature_state in Game.get_creatures(game_state):
+			if not Creature.targettable(creature_state):
 				continue
-			if c.hexproof and c.owner != game.player_with_priority:
+			if Creature.hexproof(creature_state) and Card.owner(creature_state) != pwp:
 				continue
 			if green_count > 0:
-				possible_moves.append(('card-{}'.format(self.__class__.__name__), 
+				card_index = Game.get_hand(game_state, pwp).index(card_state)
+				possible_moves.append(('card-{}'.format(Card.name(creature_state)), 
 										card_index, 
-										('G', ), 
-										c.id,
+										(('G', ), None), 
+										Card.id(creature_state),
 										None,
-										game.player_with_priority))
+										pwp))
 
 		return possible_moves
 
-	def play(self, game, mana_to_use, target_creature_id):
+
+	@staticmethod
+	def play(card_state, game_state, mana_to_use, target_creature_id, Game):
 		"""Pump a creature based on how much mana is used."""
-		creature = game.creature_with_id(target_creature_id)
-		if creature:
-			creature.strength_counters += 1
-			creature.hit_point_counters += 1
-			if game.creature_died_this_turn:
-				creature.strength_counters += 2
-				creature.hit_point_counters += 2
-		game.get_players()[self.owner].get_hand().remove(self)
-		if game.print_moves:
+		target_creature_state = Game.creature_with_id(game_state, target_creature_id)
+		if target_creature_state:
+			target_creature_state = Creature.increment_strength_counters(target_creature_state, 1)
+			target_creature_state = Creature.increment_hit_point_counters(target_creature_state, 1)
+			if Game.get_creature_died_this_turn(game_state):
+				target_creature_state = Creature.increment_strength_counters(target_creature_state, 2)
+				target_creature_state = Creature.increment_hit_point_counters(target_creature_state, 2)
+			game_state = Game.set_creature_with_id(game_state, target_creature_state, target_creature_id)
+
+		new_creatures = []
+		for creature_state in Game.get_creatures(game_state):
+			if target_creature_state and Card.id(creature_state) == Card.id(target_creature_state):
+				new_creatures.append(target_creature_state)
+			else:
+				new_creatures.append(creature_state)
+		game_state = Game.set_creatures(game_state,new_creatures)
+
+		game_state = Game.remove_card_from_hand(game_state, Game.player_with_priority(game_state), card_state)
+
+		if Game.print_moves(game_state):
 			format_str = None
-			if game.creature_died_this_turn:
+			if Game.creature_died_this_turn(game_state):
 				format_str = "> Player {} played {} on {}, with morbid, total stats now {}/{}.."
 			else:
 				format_str = "> Player {} played {} on {}, total stats now {}/{}."
 			print format_str.format( 
-				self.owner, 
-				self.__class__.__name__,
-				creature.__class__.__name__,
-				creature.total_damage(),
-				creature.total_hit_points(),
+				Card.owner(card_state), 
+				Card.name(card_state),
+				Card.name(target_creature_state),
+				Creature.total_damage(target_creature_state),
+				Creature.total_hit_points(target_creature_state),
 			)
+		return game_state
 
 
 class Fireball(Card):
 	"""A card that deal X damage to anything."""
 
-	def possible_moves(self, game):
+	@staticmethod
+	def possible_moves(card_state, game_state, Game):
 		"""Returns possible fireballs targets and amounts."""
-		available_mana = game.available_mana()
+		available_mana = Game.available_mana(game_state)
 		possible_moves = []
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
+		pwp = Game.player_with_priority(game_state)
 		
 		has_red = False
 		total_mana = 0
@@ -491,196 +641,188 @@ class Fireball(Card):
 				has_red = True
 
 		if has_red and total_mana > 1:
+			card_index = Game.get_hand(game_state, pwp).index(card_state)
 			for mana in range(2, total_mana+1):
 				possible_moves.append(('card-fireball', 
-										card_index, 
-										('R', mana-1), 
+										card_index,
+										(('R', ), mana-1),
 										None,
 										None,
-										game.player_with_priority))
-			for c in game.get_creatures():
-				if c.hexproof and c.owner != game.player_with_priority:
+										pwp))
+			for creature_state in Game.get_creatures(game_state):
+				if Creature.hexproof(creature_state) and Card.owner(creature_state) != pwp:
 					continue
-				if c.targettable and c.temp_targettable:
+				if Creature.targettable(creature_state) and Creature.temp_targettable(creature_state):
 					for mana in range(2, total_mana+1):
 						possible_moves.append(('card-fireball-creature', 
 							card_index, 
-							('R', mana-1), 
-							c.id,
+							(('R', ), mana-1), 
+							Card.id(creature_state),
 							None,
-							game.player_with_priority))
+							pwp))
 		return possible_moves
 
-	def play(self, game, mana_to_use, target_creature_id):
+	@staticmethod
+	def play(card_state, game_state, mana_to_use, target_creature_id, Game):
 		"""Decrement hit_points equal to blaster's mana from blastee."""
-		blaster = game.get_players()[game.player_with_priority]
-		blaster.get_hand().remove(self)
+		pwp = Game.player_with_priority(game_state)
+		blaster = Game.get_player_states(game_state)[pwp]
+		game_state = Game.remove_card_from_hand(game_state, pwp, card_state)
 
 		colorless = 0
-		for mana in mana_to_use:
-			if isinstance(mana, int):
-				colorless = mana
-				break
+		if mana_to_use[1] != None:
+			colorless = mana_to_use[1]
 		if target_creature_id:
-			blaster = game.get_players()[game.player_with_priority]
-			creature = game.creature_with_id(target_creature_id)
-			if (colorless) >= creature.hit_points:
-				if creature.id in game.attackers:
-					game.attackers.remove(creature.id)
-				for e in creature.enchantments:
-					e.on_graveyard(game)
-				creature.on_graveyard(game)
-				game.get_creatures().remove(creature)
-				game.creature_died_this_turn = True
+			creature = Game.creature_with_id(game_state, target_creature_id)
+			if (colorless) >= Creature.total_hit_points(creature):
+				if creature.id in Game.get_attackers(game_state):
+					game_state = Game.remove_attacker(game_state, Card.id(creature))
+				for e in Creature.enchantments(creature):
+					game_state = Card.on_graveyard(e, game_state, Game)
+				game_state = Card.on_graveyard(creature, game_state, Game)
+				game_state = Game.remove_creature(game_state, creature)
+				game_state = Game.set_creature_died_this_turn(game_state, True)
 			else:
-				creature.hit_points -= colorless
+				target_creature_state = Creature.increment_temp_hit_points(creature, colorless)
+				new_creatures = []
+				for creature_state in Game.get_creatures(game_state):
+					if Card.id(creature_state) == Card.id(target_creature_state):
+						new_creatures.append(target_creature_state)
+					else:
+						new_creatures.append(creature_state)
+				game_state = Game.set_creatures(game_state, new_creatures)
 
-			if game.print_moves:
+			if Game.print_moves(game_state):
 				print "> {} fireballed {} for {} damage." \
-				.format(blaster.display_name(game.player_with_priority), creature.__class__.__name__, colorless)
+				.format(bot.display_name(blaster, pwp), Card.name(creature), colorless)
 		else:
-			blastee = game.opponent(blaster)
-			blastee.hit_points -= colorless
-			game.damage_to_players[game.players.index(blastee)] += colorless
+			blastee = Game.opponent(game_state, blaster)
+			game_state = Game.increment_hit_points(game_state, Game.get_player_states(game_state).index(blastee), -colorless)
+			game_state = Game.increment_damage_to_player(game_state, Game.get_player_states(game_state).index(blastee), colorless)
 
-			if game.print_moves:
+			if Game.print_moves(game_state):
 				print "> {} fireballed for {} damage." \
-				.format(blaster.display_name(game.player_with_priority), colorless)
+				.format(Game.player_display_name(blaster, pwp), colorless)
+
+		return game_state
 
 
 class Creature(Card):
 	"""A fantasy creature card instance."""
 
-	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
-		super(Creature, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
-		self.strength = self.initial_strength()
-		self.hit_points = self.initial_hit_points()
-		self.targettable = True
-		self.temp_strength = 0
-		self.temp_hit_points = 0
-		self.temp_targettable = True
-		self.activated_ability = False
-		self.activated_ability_type = 'instant'
-		self.strength_counters = 0
-		self.hit_point_counters = 0
-		self.flying = False
-		self.hexproof = False
-		self.lifelink = False
-		self.enchantments = []
-		self.card_type = "creature"
-
 	@staticmethod
-	def creature_for_state(state):
-		c = Card.class_for_name(state[0])(state[1], state[2], tapped=state[3], turn_played=state[4])
-		c.targettable = state[5]
-		c.temp_strength = state[6]
-		c.temp_hit_points = state[7]
-		c.temp_targettable =state[8]
-		c.activated_ability = state[9]
-		c.activated_ability_type = state[10]
-		c.strength_counters = state[11]
-		c.hit_point_counters = state[12]
-		c.flying = state[13]
-		c.hexproof = state[14]
-		c.lifelink = state[15]
-
-		for enchantment in state[16]:
-			c.enchantments.append(Card.card_for_state(enchantment))
-
-		return c
-
-	def state_repr(self):
-		"""Return a hashable representation of the creature."""
-		return (self.__class__.__name__,
-			 	self.owner, 
-				self.id, 
-				self.tapped, 
-				self.turn_played,
-				self.targettable, 
-				self.temp_strength, 
-				self.temp_hit_points,
-				self.temp_targettable,
-				self.activated_ability,
-				self.activated_ability_type,
-				self.strength_counters,
-				self.hit_point_counters,
-				self.flying,
-				self.hexproof,
-				self.lifelink,
-				tuple([e.state_repr() for e in self.enchantments]),
+	def get_tuple(classname, owner, new_id, turn_played, 
+		flying=False,
+		hexproof=False,
+		lifelink=False):
+		"""Return a hashable tuple representing the Card."""
+		return (
+			classname,
+			owner, 
+			new_id, 
+			False, # tapped 
+			turn_played, 
+			name_to_card_type[classname], 
+			False, #targettable, 
+			0, # temp_strength, 
+			0, # temp_hit_points,
+			False, # temp_targettable,
+			False, # activated_ability,
+			'instant', # activated_ability_type,
+			0, # strength_counters,
+			0, #hit_point_counters,
+			flying,
+			hexproof,
+			lifelink,
+			(),
 		)
 
-	def initial_strength():
-		return 0
+	@staticmethod
+	def adjust_for_end_turn(card_state):
+		state = Creature.set_temp_strength(card_state, 0)
+		state = Creature.set_temp_hit_points(card_state, 0)
+		state = Creature.set_temp_targettable(card_state, False)
+		return card_state
 
-	def initial_hit_points():
-		return 0
-
-	def adjust_for_end_turn(self):
-		self.temp_strength = 0
-		self.temp_hit_points = 0
-		self.temp_targettable = True
-
-	def total_damage(self):
+	@staticmethod
+	def total_damage(card_state):
 		enchantment_damage = 0
-		for e in self.enchantments:
-			enchantment_damage += e.attack_bonus()
-		return self.strength + self.temp_strength + self.strength_counters + enchantment_damage
+		for e_state in Creature.enchantments(card_state):
+			enchantment_damage += CreatureEnchantment.attack_bonus(e_state)
+		return name_to_stats[Card.name(card_state)][0] + Creature.temp_strength(card_state) + Creature.strength_counters(card_state) + enchantment_damage
 
-	def total_hit_points(self):
+	@staticmethod
+	def total_hit_points(card_state):
 		enchantment_hit_points = 0
-		for e in self.enchantments:
-			enchantment_hit_points += e.defense_bonus()
-		return self.hit_points + self.temp_hit_points + self.hit_point_counters + enchantment_hit_points
+		for e_state in Creature.enchantments(card_state):
+			enchantment_hit_points += CreatureEnchantment.defense_bonus(e_state)
+		return name_to_stats[Card.name(card_state)][1] + Creature.temp_hit_points(card_state) + Creature.hit_point_counters(card_state) + enchantment_hit_points
 
-	def can_attack(self, game):
+	@staticmethod
+	def can_attack(card_state, game_state, Game):
 		"""Returns False if the creature was summoned this turn."""
-		return self.turn_played < game.current_turn and self.tapped == False
+		return Card.turn_played(card_state) < Game.get_current_turn(game_state) and Card.tapped(card_state) == False
 
-	def play(self, game, mana_to_use, target_creature_id):
+	@staticmethod
+	def play(card_state, game_state, mana_to_use, target_creature_id, Game):
 		"""Summon the creature for the player_with_priority."""
-		summoner = game.get_players()[self.owner]
-		summoner.get_hand().remove(self)
-		self.turn_played = game.current_turn
-		game.get_creatures().append(self)
-		if game.print_moves:
-			player = game.get_players()[game.player_with_priority]
+		pwp = Card.owner(card_state)
+		game_state = Game.remove_card_from_hand(game_state, pwp, card_state)
+		card_state = Card.set_turn_played(card_state, Game.get_current_turn(game_state))
+		game_state = Game.add_creature(card_state, game_state)
+		if Game.print_moves(game_state):
+			summoner = Game.get_player_states(game_state)[pwp]
 			print "> {} summoned a {}." \
 				.format(
-					player.display_name(game.player_with_priority), 
-					self.display_name()
+					Game.player_display_name(summoner, pwp), 
+					Card.name(card_state)
 				)
+		return game_state
 
-	def possible_ability_moves(self, game):
+	@staticmethod
+	def possible_ability_moves(card_state, game_state, Game):
+		if Card.name(card_state) == 'QuirionRanger':
+			return QuirionRanger.possible_ability_moves(card_state, game_state, Game)
+		elif Card.name(card_state) == 'EldraziSpawnToken':
+			return EldraziSpawnToken.possible_ability_moves(card_state, game_state, Game)
 		return []
 
-	def can_be_blocked_by(self, creature):
-		if self.flying and not creature.flying:
+	@staticmethod
+	def can_be_blocked_by(card_state, creature):
+		if Creature.flying(card_state) and not Creature.flying(creature):
 			return False
+		elif Creature.name(card_state) == 'SkarrganPitSkulk':
+			return SkarrganPitSkulk.can_be_blocked_by(card_state, creature)
+		elif Creature.name(card_state) == 'SilhanaLedgewalker':
+			return SilhanaLedgewalker.can_be_blocked_by(card_state, creature)
 		return True
 
-	def creature_types(self):
+	@staticmethod
+	def creature_types(card_state):
 		return []
 
-	def did_deal_damage(self, game):
-		if self.lifelink:
-			owner = game.get_players()[self.owner] 
-			owner.hit_points += self.total_damage()
-			if game.print_moves:
+	@staticmethod
+	def did_deal_damage(card_state, game_state):
+		if Creature.lifelink(card_state):
+			pwp = Card.owner(card_state)
+			game_state = Game.increment_hit_point(game_state, pwp, Creature.total_damage(card_state))
+			if Game.print_moves(game_state):
 				print "> {} gained {} life from {}." \
 					.format(
-						owner.display_name(game.player_with_priority), 
-						self.total_damage(), 
-						self.__class__.__name__
+						Game.player_display_name(owner, pwp), 
+						Creature.total_damage(card_state), 
+						Card.name(card_state)
 					)
+		return game_state
 
-	def possible_moves(self, game):
+	@staticmethod
+	def possible_moves(card_state, game_state, Game):
 		"""Returns [] if the player doesn't have enough mana, other returns the action to play the creature."""
-		available_mana = game.available_mana()
+		available_mana = Game.available_mana(game_state)
 		
 		colored_symbols = []
-		for mana in self.total_mana_cost():
-			if type(mana) != int and 'L' not in mana:
+		for mana in Card.total_mana_cost(card_state)[0]:
+			if 'L' not in mana:
 				colored_symbols.append(mana)
 		
 		total_mana = 0
@@ -694,31 +836,103 @@ class Creature(Card):
 					if len(colored_symbols) == 0:
 						break
 
-		if len(colored_symbols) == 0 and total_mana >= self.mana_cost():
-			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
-			return [('card-{}'.format(self.__class__.__name__), 
+		if len(colored_symbols) == 0 and total_mana >= Card.mana_cost(card_state):
+			pwp = Game.player_with_priority(game_state)
+			card_index = Game.get_hand(game_state, pwp).index(card_state)
+			return [('card-{}'.format(Card.name(card_state)), 
 				card_index, 
-				self.total_mana_cost(), 
+				Card.total_mana_cost(card_state), 
 				None,
 				None,
-				game.player_with_priority)]
+				pwp)]
 		return []
 
-
-	def display_name(self, display_stats=True):
-		"""Split the name on uppercase letter and add spaces."""
-		display_name = super(Creature,self).display_name()
-		if display_stats:
-			return "{} ({}/{})".format(display_name, self.total_damage(), self.total_hit_points())
-		return display_name
-
-
-	def has_trample(self):
-		for e in self.enchantments:
-			if e.__class__.__name__ == "Rancor":
+	@staticmethod
+	def has_trample(card_state):
+		for e in Creature.enchantments(card_state):
+			if Card.name(e) == "Rancor":
 				return True
 		return False
 
+	@staticmethod
+	def targettable(card_state):
+		return card_state[6]
+
+	@staticmethod
+	def temp_strength(card_state):
+		return card_state[7]
+
+	@staticmethod
+	def temp_hit_points(card_state):
+		return card_state[8]
+
+	@staticmethod
+	def temp_targettable(card_state):
+		return card_state[9]
+
+	@staticmethod
+	def activated_ability(card_state):
+		return card_state[10]
+
+	@staticmethod
+	def activated_ability_type(card_state):
+		return card_state[11]
+
+	@staticmethod
+	def strength_counters(card_state):
+		return card_state[12]
+
+	@staticmethod
+	def hit_point_counters(card_state):
+		return card_state[13]
+
+	@staticmethod
+	def flying(card_state):
+		return card_state[14]
+
+	@staticmethod
+	def hexproof(card_state):
+		return card_state[15]
+
+	@staticmethod
+	def lifelink(card_state):
+		return card_state[16]
+
+	@staticmethod
+	def enchantments(card_state):
+		return card_state[17]
+
+	@staticmethod
+	def increment_temp_strength(card_state, increment):
+		mutable_tuple = list(card_state)
+		mutable_tuple[7] += increment
+		return tuple(mutable_tuple)
+
+	@staticmethod
+	def increment_temp_hit_points(card_state, increment):
+		mutable_tuple = list(card_state)
+		mutable_tuple[8] += increment
+		return tuple(mutable_tuple)
+
+	@staticmethod
+	def increment_strength_counters(card_state, increment):
+		mutable_tuple = list(card_state)
+		mutable_tuple[12] += increment
+		return tuple(mutable_tuple)
+
+	@staticmethod
+	def increment_hit_point_counters(card_state, increment):
+		mutable_tuple = list(card_state)
+		mutable_tuple[13] += increment
+		return tuple(mutable_tuple)
+
+	@staticmethod
+	def add_enchantment(target, new_enchantment):
+		mutable_tuple = list(target)
+		mutable_tuple[17] = list(mutable_tuple[17])
+		mutable_tuple[17].append(new_enchantment)
+		mutable_tuple[17] = tuple(mutable_tuple[17])
+		return tuple(mutable_tuple)
 
 
 class NettleSentinel(Creature):
@@ -728,25 +942,17 @@ class NettleSentinel(Creature):
 		Whenever you cast a green spell, you may untap Nettle Sentinel.
 	"""
 
-	def total_mana_cost(self):
-		return ('G', )
+	@staticmethod
+	def react_to_spell(game_state, reacting_self, spell, Game):
+		total_mana_cost = Card.total_mana_cost(spell)
+		for item in total_mana_cost[0]:
+			if 'G' in item:
+				card_state = Card.set_tapped(reacting_self, False)
+				game_state = Game.set_creature_with_id(game_state, card_state, Card.id(card_state))
+				return game_state
+		return game_state
 
-	def initial_strength(self):
-		return 2
-
-	def initial_hit_points(self):
-		return 2
-
-	def adjust_for_untap_phase(self):
-		pass
-
-	def react_to_spell(self, card):
-		total_mana_cost = card.total_mana_cost()
-		for item in total_mana_cost:
-			if type(item) == str and 'G' in item:
-				self.tapped = False
-				return
-
+	@staticmethod
 	def creature_types(self):
 		return ['Elf', 'Warrior']
 
@@ -758,136 +964,117 @@ class QuirionRanger(Creature):
 		Whenever you cast a green spell, you may untap Nettle Sentinel.
 	"""
 
+	#TODO is activated_ability getting tuple set to False?
+	'''
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
 		super(QuirionRanger, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
 		self.activated_ability = False
+	'''
 
-	def total_mana_cost(self):
-		return ('G', )
+	@staticmethod
+	def action_word(card_state):
+		return "Untap"
 
-	def initial_strength(self):
-		return 1
-
-	def initial_hit_points(self):
-		return 1
-
-	def possible_ability_moves(self, game):
-		if self.activated_ability:
+	@staticmethod
+	def possible_ability_moves(card_state, game_state, Game):
+		if Creature.activated_ability(card_state):
 			return []
 		untapped_forest = None
 		tapped_forest = None
-		for land in game.get_lands():
-			if land.owner != self.owner:
+		for land_state in Game.get_lands(game_state):
+			if Card.owner(land_state) != Card.owner(card_state):
 				continue
-			if land.__class__.__name__ == "Forest" and land.tapped:
-				tapped_forest = land
+			if Card.name(land_state) == "Forest" and Card.tapped(land_state):
+				tapped_forest = land_state
 
-			if land.__class__.__name__ == "Forest" and not land.tapped:
-				untapped_forest = land
+			if Card.name(land_state) == "Forest" and not Card.tapped(land_state):
+				untapped_forest = land_state
 		different_forest_targets = []
 		if tapped_forest:
 			different_forest_targets.append(tapped_forest)
 		if untapped_forest:
 			different_forest_targets.append(untapped_forest)
 		possible_moves = []
-		for land in different_forest_targets:
-				for creature in game.get_creatures():
-					if creature.owner == self.owner:
+		for land_state in different_forest_targets:
+				for creature_state in Game.get_creatures(game_state):
+					if Card.owner(creature_state) == Card.owner(card_state):
 						possible_moves.append(
 							(
-								'ability-{}'.format(self.__class__.__name__), 
-								game.get_creatures().index(self), 
-								(), 
-								creature.id, 
-								land.id,
-								game.player_with_priority,
-												self.state_repr(), 
+								'ability-{}'.format(Card.name(card_state)), 
+								Game.get_creatures(game_state).index(card_state), 
+								((), None), 
+								Card.id(creature_state), 
+								Card.id(land_state),
+								Game.player_with_priority(game_state),
+								card_state, 
 
 							)
 						)
 		return possible_moves
 
-	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id, card_in_play):
+	@staticmethod
+	def activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
 		"""Return a forest to player's hand and untap a creature."""
-		self.activated_ability = True
-
-		for creature in game.get_creatures():
-			if creature.id == target_creature_id:
-				creature.tapped = False
+		for creature_state in Game.get_creatures(game_state):
+			if Card.id(creature_state) == target_creature_id:
+				creature_state = Creature.set_tapped(creature_state, False)
 				break
+		game_state = Game.set_creature_with_id(game_state, creature_state, target_creature_id)
 
-		land_to_return = None
-		for land in game.get_lands():
-			if land.id == target_land_id:
-				land_to_return = land
-				break
-		land.return_to_hand(game)
-
-		if game.print_moves:
-			player = game.get_players()[game.player_with_priority]
-			print "> {} untapped {} with {} returning {}." \
+		if Game.print_moves(game_state):
+			pwp = Game.player_with_priority(game_state)
+			player = Game.get_player_states(game_state)[pwp]
+			print "> {} untapped {} with {}." \
 				.format(
-					player.display_name(game.player_with_priority), 
-					creature.__class__.__name__, 
-					self.__class__.__name__,
-					land_to_return.__class__.__name__,
+					Game.player_display_name(player, pwp), 
+					Card.name(creature_state), 
+					Card.name(card_state),
 				)
 
-	def adjust_for_untap_phase(self):
-		super(QuirionRanger, self).adjust_for_untap_phase()
-		self.activated_ability = False
+		return game_state
 
+	@staticmethod
+	def pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
+		"""Return a forest to player's hand and untap a creature."""
+		card_state = Creature.set_activated_ability(card_state, True)
+
+		land_to_return = None
+		for land_state in Game.get_lands(game_state):
+			if Card.id(land_state) == target_land_id:
+				land_to_return = land_state
+				break
+		game_state = Land.return_to_hand(game_state, land_to_return, Game)
+
+		if Game.print_moves(game_state):
+			pwp = Game.player_with_priority(game_state)
+			player = Game.get_player_states(game_state)[pwp]
+			print "> {} used to {} return {}." \
+				.format(
+					Game.player_display_name(player, pwp), 
+					Card.name(card_state), 
+					Card.name(land_to_return),
+				)
+
+		return game_state
+
+	@staticmethod
 	def creature_types(self):
 		return ['Elf']
 
-	def action_word(self):
-		return "Untap"
 
 class BurningTreeEmissary(Creature):
 	"""When Burning-Tree Emissary enters the battlefield, add RedGreen."""
 
-	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
-		super(BurningTreeEmissary, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
-		self.activated = False
+	@staticmethod
+	def play(card_state, game_state, mana_to_use, target_creature_id, Game):
+		game_state = Creature.play(card_state, game_state, mana_to_use, target_creature_id, Game)
+		player = Game.get_player_states(game_state)[Card.owner(card_state)]
+		game_state = Game.add_temp_mana(game_state, pwp, ('G', 'R'))
+		return game_state
 
-	def total_mana_cost(self):
-		return ('RG', 'RG')
-
-	def initial_strength(self):
-		return 2
-
-	def initial_hit_points(self):
-		return 2
-
-	def possible_moves(self, game):
-		"""Returns [] if the player has less than 2 mana, other returns the action to play the creature."""
-		available_mana = game.available_mana()
-		either_count = 0
-		for color, count in available_mana.iteritems():
-			if type(color) == str:
-				if 'G' in color or 'R' in color: 
-					either_count += count
-		if either_count >= self.mana_cost():
-			card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
-			return [('card-{}'.format(
-				self.__class__.__name__), 
-			card_index, 
-			self.total_mana_cost(), 
-			None,
-			None,
-			game.player_with_priority)]
-		return []
-
-	def play(self, game, mana_to_use, target_creature_id):
-		super(BurningTreeEmissary, self).play(game, mana_to_use, target_creature_id)
-		player = game.get_players()[self.owner]
-		player.temp_mana += list(('G', 'R'))
-
+	@staticmethod
 	def creature_types(self):
 		return ['Human', 'Shaman']
-
-	def display_name(self):
-		return "Burning-Tree Emissary"
 
 
 class SkarrganPitSkulk(Creature):
@@ -897,26 +1084,32 @@ class SkarrganPitSkulk(Creature):
 		Creatures with power less than Skarrgan Pit-Skulk's power can't block it.
 	"""
 
-	def total_mana_cost(self):
-		return ('G',)
+	@staticmethod
+	def play(card_state, game_state, mana_to_use, target_creature_id, Game):
+		game_state = Creature.play(card_state, game_state, mana_to_use, target_creature_id, Game)
 
-	def initial_strength(self):
-		return 1
+		if Game.opponent_was_dealt_damage(game_state):
+			mutable_tuple = list(card_state)
+			mutable_tuple[12] += 1
+			mutable_tuple[13] += 1
+			card_state = tuple(mutable_tuple)
 
-	def initial_hit_points(self):
-		return 1
+			new_creatures = []
+			for c_state in Game.get_creatures(game_state):
+				if Card.id(c_state) == Card.id(card_state):
+					new_creatures.append(card_state)
+				else:
+					new_creatures.append(c_state)
+			game_state = Game.set_creatures(game_state, new_creatures)			
+		return game_state
 
-	def play(self, game, mana_to_use, target_creature_id):
-		if game.opponent_was_dealt_damage():
-			self.strength_counters += 1
-			self.hit_point_counters += 1
-		super(SkarrganPitSkulk, self).play(game, mana_to_use, target_creature_id)
-
-	def can_be_blocked_by(self, creature):
-		if creature.total_damage() < self.total_damage():
+	@staticmethod
+	def can_be_blocked_by(card_state, creature):
+		if Creature.total_damage(creature) < Creature.total_damage(card_state):
 			return False
 		return True
 
+	@staticmethod
 	def creature_types(self):
 		return ['Human', 'Warrior']
 
@@ -927,22 +1120,20 @@ class NestInvader(Creature):
 		It has "Sacrifice this creature: Add Colorless."
 	"""
 
-	def total_mana_cost(self):
-		return ('G', 1)
-
-	def initial_strength(self):
-		return 2
-
-	def initial_hit_points(self):
-		return 2
-
-	def play(self, game, mana_to_use, target_creature_id):
-		super(NestInvader, self).play(game, mana_to_use, target_creature_id)
-		token = EldraziSpawnToken(self.owner, None, tapped=False, turn_played=game.current_turn)
-		token.id = game.new_card_id
-		game.new_card_id += 1
-		game.get_players()[self.owner].hand.append(token)
-		token.play(game, 0, target_creature_id)
+	@staticmethod
+	def play(card_state, game_state, mana_to_use, target_creature_id, Game):
+		game_state = Creature.play(card_state, game_state, mana_to_use, target_creature_id, Game)
+		pwp = Card.owner(card_state)
+		token_state = Creature.get_tuple(
+			'EldraziSpawnToken', 
+			pwp, 
+			Game.get_new_card_id(game_state), 
+			Game.get_current_turn(game_state)
+		)
+		game_state = Game.increment_new_card_id(game_state)
+		game_state = Game.add_card_to_hand(game_state, token_state)
+		game_state = Creature.play(token_state, game_state, mana_to_use, target_creature_id, Game)
+		return game_state
 
 	def creature_types(self):
 		return ['Eldrazi', 'Drone']
@@ -954,101 +1145,92 @@ class EldraziSpawnToken(Creature):
 		It has "Sacrifice this creature: Add Colorless."
 	"""
 
-	def total_mana_cost(self):
-		return (0,)
+	@staticmethod
+	def action_word(card_state):
+		return "Sacrifice"
 
-	def initial_strength(self):
-		return 0
+	@staticmethod
+	def creature_types(self):
+		return ['Eldrazi', 'Token']
 
-	def initial_hit_points(self):
-		return 1
-
-	def possible_ability_moves(self, game):
+	@staticmethod
+	def possible_ability_moves(card_state, game_state, Game):
 		return [
 			(
-				'ability-{}'.format(self.__class__.__name__), 
-				game.get_creatures().index(self), 
-				(), 
+				'ability-{}'.format(Card.name(card_state)), 
+				Game.get_creatures(game_state).index(card_state), 
+				((), None), 
 				None, 
 				None,
-				game.player_with_priority,
-				self.state_repr(), 
+				Game.player_with_priority(game_state),
+				card_state, 
 			)
 		]
 
-	def activate_ability(self, game, mana_to_use, target_creature_id, target_land_id, card_in_play):
-		if self.id in game.attackers:
-			game.attackers.remove(self.id)
-		if self.id in game.blockers:
-			game.blockers.remove(self.id)
+	@staticmethod
+	def pay_for_activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
+		if Creature.id(card_state) in Game.get_attackers(game_state):
+			game_state = Game.remove_attacker(game_state, Creature.id(card_state))
+		if Creature.id(card_state) in Game.get_blockers(game_state):
+			game_state = Game.remove_blocker(game_state, Creature.id(card_state))
 
 		block_where_attacking = None
 		block_where_blocking = None
 
-		for block in game.blocks:
-			if block[0] == self.id:
+		for block in Game.get_blocks(game_state):
+			if block[0] == Creature.id(card_state):
 				block_where_attacking = block
-			if self.id in block[1]:
+			if Creature.id(card_state) in block[1]:
 				block_where_blocking = block
 
 		if block_where_attacking:
-			game.blocks.remove(block_where_attacking)
+			game_state = Game.remove_block(game_state, block_where_attacking)
 		if block_where_blocking:
-			list_tuple = list(block_where_blocking[1])
-			list_tuple.remove(self.id)
-			list_block = list(block_where_blocking)
-			list_block[1] = list_tuple
-			block_where_blocking = tuple(list_block)
+			game_state = Game.remove_from_block(game_state, card_state, block_where_blocking)
 
-		for c in game.get_creatures():
-			if c.id == self.id:
-				game.get_creatures().remove(c)
+		for c_state in Game.get_creatures(game_state):
+			if Card.id(c_state) == Creature.id(card_state):
+				game_state = Game.remove_creature(game_state, c_state)
 				break
 
-		player = game.get_players()[game.player_with_priority]
-		player.temp_mana += [1]
-
-		game.creature_died_this_turn = True
-
-		self.on_graveyard(game)
-		for e in self.enchantments:
-			e.on_graveyard(game)
+		pwp = Game.player_with_priority(game_state)
+		acting_player = Game.get_player_states(game_state)[pwp]
+		game_state = Game.add_temp_mana(game_state, pwp, (1, ))
+		acting_player = Game.get_player_states(game_state)[pwp]
+		game_state = Game.set_creature_died_this_turn(game_state, True)
+		game_state = Card.on_graveyard(card_state, game_state, Game)
+		for e in Creature.enchantments(card_state):
+			game_state = Card.on_graveyard(e, game_state, Card)
 		
-		if game.print_moves:
+		if Game.print_moves(card_state):
 			print "> {} sacrificed {}." \
 				.format(
-					player.display_name(game.player_with_priority), 
-					self.__class__.__name__, 
+					Game.player_display_name(player, pwp), 
+					Card.name(card_state), 
 				)
+		return game_state
 
-	def creature_types(self):
-		return ['Eldrazi', 'Token']
-
-	def action_word(self):
-		return "Sacrifice"
-
+	@staticmethod
+	def activate_ability(card_state, game_state, mana_to_use, target_creature_id, target_land_id, card_in_play, Game):
+		return game_state
 
 class SilhanaLedgewalker(Creature):
 	"""
 		Hexproof (This creature can't be the target of spells or abilities your opponents control.)
 		Silhana Ledgewalker can't be blocked except by creatures with flying.
 	"""
+	#TODO is tuple hexproof being
+	'''
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
 		super(SilhanaLedgewalker, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
 		self.hexproof = True
+	'''
 
-	def total_mana_cost(self):
-		return ('G', 1)
+	@staticmethod
+	def can_be_blocked_by(card_state, creature):
+		return Creature.flying(creature)
 
-	def initial_strength(self):
-		return 1
-
-	def initial_hit_points(self):
-		return 1
-
-	def can_be_blocked_by(self, creature):
-		return creature.flying
-
+	@staticmethod
 	def creature_types(self):
 		return ['Elf', 'Rogue']
 
@@ -1059,107 +1241,94 @@ class VaultSkirge(Creature):
 		Flying
 		Lifelink (Damage dealt by this creature also causes you to gain that much life.)
 	"""
+	#TODO is tuple flying, lifelink being set
+	'''
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
 		super(VaultSkirge, self).__init__(owner, card_id, tapped=tapped, turn_played=turn_played)
 		self.flying = True
 		self.lifelink = True
+	'''
 
-	def total_mana_cost(self):
-		return ('B', 1)
-
-	def initial_strength(self):
-		return 1
-
-	def initial_hit_points(self):
-		return 1
-
+	@staticmethod
 	def creature_types(self):
 		return ['Artifact', 'Imp']
-
-	def possible_moves(self, game):
-		"""Returns [] if the player doesn't have enough mana, other returns the action to play the Skirge."""
-		available_mana = game.available_mana()
-		has_green = False
-		total_mana = 0
-		for color, count in available_mana.iteritems():
-			total_mana += count
-			if type(color) != int and 'B' in color:
-				has_green = True
-		possible_moves = []
-		casting_player = game.get_players()[game.player_with_priority]
-		if has_green and total_mana >= self.mana_cost():
-			card_index = casting_player.get_hand().index(self)
-			possible_moves.append(('card-{}'.format(self.__class__.__name__), 
-				card_index, 
-				self.total_mana_cost(), 
-				None,
-				None,
-				game.player_with_priority))
-		if casting_player.hit_points >= 2 and total_mana >= 1:
-			card_index = casting_player.get_hand().index(self)
-			possible_moves.append(('card-{}'.format(self.__class__.__name__), 
-				card_index, 
-				(1, 'L2'), 
-				None,
-				None,
-				game.player_with_priority))
-		return possible_moves
 
 
 class CreatureEnchantment(Card):
 	"""A fantasy enchantment card instance."""
 
+	#TODO is tuple card_type = "enchantment" being set
+	'''
 	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
 		super(CreatureEnchantment, self).__init__(owner, card_id, tapped=False, turn_played=turn_played)
 		self.card_type = "enchantment"
+	'''
 
-	def attack_bonus(self):
-		return 0
+	@staticmethod
+	def attack_bonus(card_state):
+		return attack_bonus_map[Card.name(card_state)]
 
-	def defense_bonus(self):
-		return 0
+	@staticmethod
+	def defense_bonus(card_state):
+		return defense_bonus_map[Card.name(card_state)]
 
-	def possible_moves(self, game):
+	@staticmethod
+	def play(card_state, game_state, mana_to_use, target_creature_id, Game):
+		"""Summon the enchantment for the player_with_priority."""
+		pwp = Game.player_with_priority(game_state)
+		summoner = Game.get_player_states(game_state)[pwp]
+		game_state = Game.remove_card_from_hand(game_state, pwp, card_state)
+		card_state = Card.set_turn_played(card_state, Game.get_current_turn(game_state))
+		
+		# should prolly need this
+		#game_state = Game.add_permanent(game_state, land_state)
+
+		target_creature_state = Game.creature_with_id(game_state, target_creature_id)
+		if target_creature_state: # if it didn't die
+			target_creature_state = Creature.add_enchantment(target_creature_state, state)
+			new_creatures = []
+			for creature_state in Game.get_creatures(game_state):
+				if Card.id(creature_state) == Card.id(target_creature_state):
+					new_creatures.append(target_creature_state)
+				else:
+					new_creatures.append(creature_state)
+			game_state = Game.set_creatures(game_state, new_creatures)
+		if Game.print_moves(game_state):
+			print "> {} played a {} on {}." \
+				.format(
+					Game.player_display_name(summoner, pwp), 
+					Card.name(card_state),
+					Card.name(target_creature_state)
+				)
+		return game_state
+
+
+	@staticmethod
+	def possible_moves(card_state, game_state, Game):
 		"""Returns [] if the player doesn't have enough mana, other returns the action to play the enchantment."""
-		available_mana = game.available_mana()
+		available_mana = Game.available_mana(game_state)
 		has_green = False
 		total_mana = 0
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
+		pwp = Game.player_with_priority(game_state)
+		card_index = Game.get_hand(game_state, pwp).index(card_state)
 		possible_moves = []
 		for color, count in available_mana.iteritems():
 			total_mana += count
 			if type(color) != int and 'G' in color:
 				has_green = True
-		if has_green and total_mana >= self.mana_cost():
-			for c in game.get_creatures():
-				if c.hexproof and c.owner != game.player_with_priority:
+		if has_green and total_mana >= Card.mana_cost(card_state):
+			for c_state in Game.get_creatures(game_state):
+				if Creature.hexproof(c_state) and Card.owner(c_state) != pwp:
 					continue
-				if c.targettable and c.temp_targettable:
+				if Creature.targettable(c_state) and Creature.temp_targettable(c_state):
 					possible_moves.append(
 						('card-rancor', 
 						card_index, 
-						('G', ), 
-						c.id,
+						(('G', ), None), 
+						Card.id(c_state),
 						None,
-						game.player_with_priority))
+						pwp))
 		return possible_moves
-
-	def play(self, game, mana_to_use, target_creature_id):
-		"""Summon the enchantment for the player_with_priority."""
-		summoner = game.get_players()[game.player_with_priority]
-		summoner.get_hand().remove(self)
-		self.turn_played = game.current_turn
-		target_creature = game.creature_with_id(target_creature_id)
-		if target_creature: # if it didn't die
-			target_creature.enchantments.append(self)
-		if game.print_moves:
-			player = game.get_players()[game.player_with_priority]
-			print "> {} played a {} on {}." \
-				.format(
-					player.display_name(game.player_with_priority), 
-					self.__class__.__name__,
-					target_creature.__class__.__name__
-				)
 
 
 class Rancor(CreatureEnchantment):
@@ -1168,68 +1337,14 @@ class Rancor(CreatureEnchantment):
 		When Rancor is put into a graveyard from the battlefield, 
 		return Rancor to its owner's hand.
 	"""
-
-	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
-		super(Rancor, self).__init__(owner, card_id, tapped=False, turn_played=turn_played)
-
-	def total_mana_cost(self):
-		return ('G', )
-
-	def attack_bonus(self):
-		return 2
-
-	def possible_moves(self, game):
-		"""Returns [] if the player doesn't have enough mana, other returns the action to play the enchantment."""
-		available_mana = game.available_mana()
-		has_green = False
-		total_mana = 0
-		card_index = game.get_players()[game.player_with_priority].get_hand().index(self)
-		possible_moves = []
-		for color, count in available_mana.iteritems():
-			total_mana += count
-			if type(color) != int and 'G' in color:
-				has_green = True
-		if has_green and total_mana >= self.mana_cost():
-			for c in game.get_creatures():
-				if c.hexproof and c.owner != game.player_with_priority:
-					continue
-				if c.targettable and c.temp_targettable:
-					possible_moves.append(('card-rancor', 
-						card_index, 
-						('G', ), 
-						c.id,
-						None,
-						game.player_with_priority))
-		return possible_moves
-
-	def on_graveyard(self, game):
-		game.players[self.owner].get_hand().append(self)
-
+	pass
 
 class ElephantGuide(CreatureEnchantment):
 	"""
 		Enchanted creature gets +3/+3.
 		When enchanted creature dies, create a 3/3 green Elephant creature token.
 	"""
-
-	def __init__(self, owner, card_id, tapped=False, turn_played=-1):
-		super(ElephantGuide, self).__init__(owner, card_id, tapped=False, turn_played=turn_played)
-
-	def total_mana_cost(self):
-		return ('G', 2)
-
-	def attack_bonus(self):
-		return 3
-
-	def defense_bonus(self):
-		return 3
-
-	def on_graveyard(self, game):
-		token = ElephantToken(self.owner, None, tapped=False, turn_played=game.current_turn)
-		token.id = game.new_card_id
-		game.new_card_id += 1
-		game.get_players()[self.owner].get_hand().append(token)
-		token.play(game, 0, None)
+	pass
 
 
 class ElephantToken(Creature):
@@ -1237,15 +1352,7 @@ class ElephantToken(Creature):
 		An 3/3 green Elephant Spawn creature token. 
 	"""
 
-	def total_mana_cost(self):
-		return (0,)
-
-	def initial_strength(self):
-		return 3
-
-	def initial_hit_points(self):
-		return 3
-
+	@staticmethod
 	def creature_types(self):
 		return ['Elephant', 'Token']
 
@@ -1270,3 +1377,77 @@ class_map = {}
 for c in card_classes:
 	class_map[c.__name__] = c
 
+
+name_to_mana_cost = {
+			'NestInvader':(('G', ), 1),
+			'SilhanaLedgewalker':(('G', ), 1),
+			'VaultSkirge': (('B', ), 1),
+			'VinesOfVastwood': (('G', ), None),
+			'HungerOfTheHowlpack': (('G', ), None),
+			'NettleSentinel': (('G', ), None),
+			'QuirionRanger': (('G', ), None),
+			'BurningTreeEmissary': (('RG', 'RG', ), None),
+			'SkarrganPitSkulk': (('G', ), None),
+			'Rancor': (('G', ), None),
+			'EldraziSpawnToken': ((), 0),
+			'ElephantGuide': (('G', ), 2),	
+			'ElephantToken': ((), 0),	
+			'Forest': ((), None),	
+			'Mountain': ((), None),	
+		}
+
+
+name_to_card_type = {
+			'NestInvader': 'creature',
+			'SilhanaLedgewalker': 'creature',
+			'VaultSkirge': 'creature',
+			'VinesOfVastwood': 'instant',
+			'HungerOfTheHowlpack': 'instant',
+			'NettleSentinel': 'creature',
+			'QuirionRanger': 'creature',
+			'BurningTreeEmissary': 'creature',
+			'SkarrganPitSkulk': 'creature',
+			'Rancor': 'enchantment',
+			'EldraziSpawnToken': 'creature',
+			'ElephantGuide': 'enchantment',	
+			'ElephantToken': 'creature',	
+			'Forest': 'land',	
+			'Mountain': 'land',	
+		}
+
+
+name_to_stats = {
+			'NestInvader':(2, 2),
+			'SilhanaLedgewalker':(1, 1),
+			'VaultSkirge': (1, 1),
+			'NettleSentinel': (2, 2),
+			'QuirionRanger': (1, 1),
+			'BurningTreeEmissary': (2, 2),
+			'SkarrganPitSkulk': (1,1),
+			'EldraziSpawnToken': (0,1),
+			'ElephantToken': (3,3),	
+		}
+
+
+mana_provided_list_map = {
+	'Forest':('G', ),
+	'Mountain':('R', ),
+	'Land':('BUGRW', ),
+}
+
+mana_provided_map = {
+	'Forest':{'G': 1},
+	'Mountain':{'R': 1},
+	'Land':{'BUGRW': 1},
+}
+
+
+attack_bonus_map = {
+	'ElephantGuide': 3,
+	'Rancor': 2,
+}
+
+defense_bonus_map = {
+	'ElephantGuide': 3,
+	'Rancor': 0,
+}
