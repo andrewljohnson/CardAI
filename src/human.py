@@ -1,9 +1,9 @@
 """MonteCarloBot plays out N iterations, trying out random move sequences affter legal moves."""
 
-from bot import Bot
-from card import Card
-from game import Game
-from utils import decarded_state
+from src.bot import Bot
+from src.card import Card
+from src.game import Game
+from src.utils import decarded_state
 
 
 class Human(Bot):
@@ -51,11 +51,11 @@ class Human(Bot):
 		if len(sorted_plays) > 1:
 			for counter, play in enumerate(sorted_plays):
 				if counter == len(sorted_plays) - 1 and play[0] == "pass_the_turn": 
-					print "  return: {}".format(Game.move_display_string(game_state, play))
+					print("  return: {}".format(Game.move_display_string(game_state, play)))
 				else:
-					print "  {}: {}".format(counter + 1, Game.move_display_string(game_state, play))
+					print("  {}: {}".format(counter + 1, Game.move_display_string(game_state, play)))
 
-			print "  p: Print your hand and the game board."
+			print("  p: Print your hand and the game board.")
 			
 			answered = False
 			while not answered:
@@ -87,4 +87,4 @@ class Human(Bot):
 		if len(Game.get_lands(game_state)):
 			Card.print_hand(Game.get_lands(game_state), owner=Game.get_player_states(game_state).index(player_state))
 		Card.print_hand(Bot.hand(player_state), show_hand=show_hand)
-		print "\n                         {} life - {} - Mana Pool: {}".format(Bot.hit_points(player_state), Bot.display_name(0), Bot.temp_mana(player_state))
+		print("\n                         {} life - {} - Mana Pool: {}".format(Bot.hit_points(player_state), Bot.display_name(0), Bot.temp_mana(player_state)))

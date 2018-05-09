@@ -4,11 +4,11 @@ import collections
 import itertools
 import json
 import pickle
-from card import Card, Creature, Land
-from constants import *
+from src.card import Card, Creature, Land
+from src.constants import *
 from random import choice, shuffle
-from statcache import StatCache
-from utils import decarded_state
+from src.statcache import StatCache
+from src.utils import decarded_state
 
 
 class Game():
@@ -67,18 +67,18 @@ class Game():
 		if Game.is_human_playing(game_state):
 			top_player = 0
 			bottom_player = 1
-		print "".join(["~" for x in range(0,SCREEN_WIDTH)])
+		print("".join(["~" for x in range(0,SCREEN_WIDTH)]))
 		Game.print_bot_board(Game.get_player_states(game_state)[top_player], game_state, show_hand=(not Game.is_human_playing(game_state)))
 		
 		middle_bar_width = SCREEN_WIDTH/3
-		spaces = "".join([" " for x in range(0,(SCREEN_WIDTH-middle_bar_width)/2)])
-		bars = "".join(["_" for x in range(0,middle_bar_width)])
-		print ""
-		print "{}{}".format(spaces, bars)
-		print ""
+		spaces = "".join([" " for x in range(0,int((SCREEN_WIDTH-middle_bar_width)/2))])
+		bars = "".join(["_" for x in range(0,int(middle_bar_width))])
+		print("")
+		print("{}{}".format(spaces, bars))
+		print("")
 		Game.print_bot_board(Game.get_player_states(game_state)[bottom_player], game_state)
-		print "".join(["~" for x in range(0,SCREEN_WIDTH)])
-		print ""
+		print("".join(["~" for x in range(0,SCREEN_WIDTH)]))
+		print("")
 
 
 	@staticmethod
@@ -117,8 +117,8 @@ class Game():
 				Game.player_display_name(player_state, 1), 
 				Game.temp_mana(player_state)
 			)
-			spaces = "".join([" " for x in range(0,(SCREEN_WIDTH-len(player_str))/2)])
-			print "{}{}\n".format(spaces, player_str)
+			spaces = "".join([" " for x in range(0,int((SCREEN_WIDTH-len(player_str))/2))])
+			print("{}{}\n".format(spaces, player_str))
 			Card.print_hand(Game.get_hand(game_state, player_number), show_hand=show_hand)
 			if len(Game.get_lands(game_state)):
 				Card.print_hand(Game.get_lands(game_state), owner=player_number)
@@ -134,8 +134,8 @@ class Game():
 				Game.hit_points(player_state), 
 				Game.player_display_name(player_state, 0), 
 				Game.temp_mana(player_state))
-			spaces = "".join([" " for x in range(0,(SCREEN_WIDTH-len(player_str))/2)])
-			print "\n{}{}".format(spaces, player_str)
+			spaces = "".join([" " for x in range(0,int((SCREEN_WIDTH-len(player_str))/2))])
+			print("\n{}{}".format(spaces, player_str))
 
 
 	@staticmethod
@@ -330,12 +330,12 @@ class Game():
 		winner, winning_hp, losing_hp = Game.winning_player(game_state)
 		if Game.print_moves(game_state):
 			if Game.game_is_drawn(game_state):
-				print "Game Over - Draw"
+				print("Game Over - Draw")
 			else:
-				print "Game Over - {} wins! Final hit points are {} to {}." \
+				print("Game Over - {} wins! Final hit points are {} to {}." \
 					.format(Game.player_display_name(winner, Game.get_player_states(game_state).index(winner)),
 							winning_hp, 
-							losing_hp)
+							losing_hp))
 		return winner
 
 	@staticmethod
@@ -651,12 +651,12 @@ class Game():
 			if mana.startswith("L"):
 				state = Game.increment_hit_points(state, pwp, -1 * int(mana[1:]))
 				if Game.print_moves(state):
-					print "> {} lost {} life from casting a Phyrexian, now at {}." \
+					print("> {} lost {} life from casting a Phyrexian, now at {}." \
 						.format(
 							Game.player_display_name(caster_state, Game.player_with_priority(state)), 
 							int(mana[1:]),
 							Game.hit_points(caster_state)
-						)
+						))
 			else:
 				colored.append(mana)
 
@@ -991,8 +991,8 @@ class Game():
 	@staticmethod
 	def initial_draw(game_state, moving_player):
 		"""Add some cards to each player's hand."""
-	 	for i in range(0,7):
-	 		game_state = Game.draw_card(game_state, moving_player);
+		for i in range(0,7):
+			game_state = Game.draw_card(game_state, moving_player);
 		pwp = Game.player_with_priority(game_state)
 		if pwp == Game.current_turn_player(game_state):
 			game_state = Game.set_priority(game_state, Game.not_current_turn_player(game_state))
@@ -1072,18 +1072,18 @@ class Game():
 			elif current_player.__class__.__name__ == "Human":
 				Game.print_board(game_state);
 			if Game.print_moves(game_state):
-				print "# TURN {} ################################################".format(Game.get_current_turn(game_state) + 1)
+				print("# TURN {} ################################################".format(Game.get_current_turn(game_state) + 1))
 			game_state = Game.clear_temp_mana(game_state, 0)
 			game_state = Game.clear_temp_mana(game_state, 1)
 		
 		if Game.print_moves(game_state) and Game.get_phase(game_state) != 'setup':			
 			if Game.is_human_playing(game_state) and current_player.__class__.__name__ != "Human":
-				print "> {} drew a card in phase {}." \
-					.format(Game.player_display_name(current_player, moving_player), Game.get_phase(game_state))	 		
+				print("> {} drew a card in phase {}." \
+					.format(Game.player_display_name(current_player, moving_player), Game.get_phase(game_state)))	 		
 			else:
-				print "> {} drew {} in phase {}." \
+				print("> {} drew {} in phase {}." \
 					.format(Game.player_display_name(current_player, moving_player),
-							Card.display_name(new_card_state), Game.get_phase(game_state))	 		
+							Card.display_name(new_card_state), Game.get_phase(game_state)))	 		
 
 		if Game.get_phase(game_state) == "draw":
 			game_state = Game.set_phase(game_state, "precombat")
@@ -1136,8 +1136,8 @@ class Game():
 		if Game.print_moves(game_state):
 			pwp = Game.player_with_priority(game_state)
 			current_player = Game.get_player_states(game_state)[pwp]
-			print "> {} declared attackers {}.".format(Game.player_display_name(current_player, pwp),
-				", ".join([Card.display_name(Game.creature_with_id(game_state, cid)) for cid in attackers]))
+			print("> {} declared attackers {}.".format(Game.player_display_name(current_player, pwp),
+				", ".join([Card.display_name(Game.creature_with_id(game_state, cid)) for cid in attackers])))
 		game_state = Game.set_priority(game_state, Game.not_current_turn_player(game_state))
 		game_state = Game.set_phase(game_state, "declare_blockers")
 		return game_state
@@ -1152,11 +1152,11 @@ class Game():
 		if Game.print_moves(game_state):
 			pwp = Game.player_with_priority(game_state)
 			current_player = Game.get_player_states(game_state)[pwp]
-			print "> {} blocked {} with {}." \
+			print("> {} blocked {} with {}." \
 				.format(Game.player_display_name(current_player, pwp), 
 					Card.display_name(Game.creature_with_id(game_state, block_tuple[0])), 
 					", ".join([Card.display_name(Game.creature_with_id(game_state, cid)) for cid in block_tuple[1]])
-				)
+				))
 		return game_state
 
 	@staticmethod
@@ -1165,8 +1165,8 @@ class Game():
 		if Game.print_moves(game_state):
 			pwp = Game.player_with_priority(game_state)
 			current_player = Game.get_player_states(game_state)[pwp]
-			print "> {} finished blocking." \
-				.format(Game.player_display_name(current_player, pwp))
+			print("> {} finished blocking." \
+				.format(Game.player_display_name(current_player, pwp)))
 		game_state = Game.set_phase(game_state, 'combat_resolution')
 		game_state = Game.set_priority(game_state, Game.current_turn_player(game_state))		
 		return game_state
@@ -1177,8 +1177,8 @@ class Game():
 		if Game.print_moves(game_state):
 			pwp = Game.player_with_priority(game_state)
 			current_player = Game.get_player_states(game_state)[pwp]
-			print "> {} announced attack." \
-				.format(Game.player_display_name(current_player, pwp))
+			print("> {} announced attack." \
+				.format(Game.player_display_name(current_player, pwp)))
 		game_state = Game.set_phase(game_state, 'attack_step')
 		game_state = Game.set_priority(game_state, Game.not_current_turn_player(game_state))
 		return game_state
@@ -1245,14 +1245,14 @@ class Game():
 				dead_names = "nothing"
 			pwp = Game.player_with_priority(game_state)
 			if total_attack > 0:
-				print "> {} attacked for {} (killed: {})." \
+				print("> {} attacked for {} (killed: {})." \
 					.format(Game.player_display_name(current_player, pwp),
 							total_attack,
-							dead_names)
+							dead_names))
 			else:
-				print "> {} attacked, (killed: {})" \
+				print("> {} attacked, (killed: {})" \
 					.format(Game.player_display_name(current_player, pwp), 
-							dead_names)
+							dead_names))
 
 		if len(dead_creatures) > 0:
 			game_state = Game.set_creature_died_this_turn(game_state, True)
@@ -1354,7 +1354,7 @@ class Game():
 			return possible_moves
 		
 		blocker_combos = []
-		for i in xrange(1,len(blockers)+1):
+		for i in range(1,len(blockers)+1):
 			blocker_combos += itertools.combinations(blockers, i)
 
 		possible_blocks = itertools.product(Game.get_attackers(game_state), blocker_combos)

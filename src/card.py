@@ -1,7 +1,7 @@
 import sys
-from constants import *
+from src.constants import *
 from re import finditer
-from utils import decarded_state
+from src.utils import decarded_state
 
 
 """Card encapsulates the actions of a fantasy card."""
@@ -152,13 +152,13 @@ class Card(object):
 		row_to_print = 0
 		width = SCREEN_WIDTH
 		while row_to_print < len(images[0]):
-			for x in range(0, max(0,(width-len(images)*12)/2)):
+			for x in range(0, max(0,int((width-len(images)*12)/2))):
 				sys.stdout.write(" ") 
 			for image in images:
 				for char in image[row_to_print]:
 					sys.stdout.write(char) 
 				sys.stdout.write(' ') 
-			print ''
+			print('')
 			row_to_print += 1
 
 	@staticmethod
@@ -394,8 +394,8 @@ class Land(Card):
 		land_state = Card.set_turn_played(land_state, Game.get_current_turn(game_state))
 		game_state = Game.add_land(game_state, land_state)
 		if Game.print_moves(game_state):
-			print "> {} played a {}." \
-				.format(Game.player_display_name(player, pwp), Card.name(land_state), Card.owner(land_state), )
+			print("> {} played a {}." \
+				.format(Game.player_display_name(player, pwp), Card.name(land_state), Card.owner(land_state), ))
 		return game_state
 
 	@staticmethod
@@ -428,13 +428,13 @@ class Land(Card):
 		game_state = Game.add_temp_mana(game_state, pwp, Land.mana_provided_list(card_state))
 		if Game.print_moves(game_state):
 			player_state = Game.get_player_states(game_state)[pwp]
-			print "> {} tapped {} for {}, has {} floating." \
+			print("> {} tapped {} for {}, has {} floating." \
 				.format(
 					Game.player_display_name(player_state, pwp), 
 					Card.name(card_state), 
 					Land.mana_provided_list(card_state),
 					Game.temp_mana(player_state),
-				)
+				))
 		return game_state
 
 	@staticmethod
@@ -469,7 +469,7 @@ class VinesOfVastwood(Card):
 		card_index = Game.get_hand(game_state, pwp).index(card_state)
 		
 		green_count = 0
-		for color, count in available_mana.iteritems():
+		for color, count in available_mana.items():
 			if type (color) == str and 'G' in color:
 				green_count += count
 
@@ -503,7 +503,7 @@ class VinesOfVastwood(Card):
 		target_creature_state = Game.creature_with_id(game_state, target_creature_id)
 		if not target_creature_state:  # it died
 			if Game.print_moves(game_state):
-				print "VinesOfVastwood fizzled, no creature with id {}.".format(target_creature_id)
+				print("VinesOfVastwood fizzled, no creature with id {}.".format(target_creature_id))
 			return
 
 		target_creature_state = Card.set_temp_targettable(target_creature_state, False)
@@ -535,16 +535,16 @@ class VinesOfVastwood(Card):
 		if Game.print_moves(game_state):
 			caster_state = Game.get_player_states(game_state)[pwp]
 			if mana_to_use == ('G', ):
-				print "> {} played VinesOfVastwood on {}." \
+				print("> {} played VinesOfVastwood on {}." \
 					.format(
 						BoGamet.player_display_name(caster_state, pwp), 
-						Creature.name(target_creature_state))
+						Creature.name(target_creature_state)))
 			else:
-				print "> {} played kicked VinesOfVastwood on {}, total power now {}." \
+				print("> {} played kicked VinesOfVastwood on {}, total power now {}." \
 					.format(
 						Game.player_display_name(caster_state, pwp), 
 						Creature.name(target_creature_state),
-						Creature.total_damage(target_creature_state))
+						Creature.total_damage(target_creature_state)))
 		return game_state
 
 
@@ -562,7 +562,7 @@ class HungerOfTheHowlpack(Card):
 		pwp = Game.player_with_priority(game_state)
 		
 		green_count = 0
-		for color, count in available_mana.iteritems():
+		for color, count in available_mana.items():
 			if type(color) == str:
 				if 'G' in color:
 					green_count += count
@@ -613,13 +613,13 @@ class HungerOfTheHowlpack(Card):
 				format_str = "> Player {} played {} on {}, with morbid, total stats now {}/{}.."
 			else:
 				format_str = "> Player {} played {} on {}, total stats now {}/{}."
-			print format_str.format( 
+			print(format_str.format( 
 				Card.owner(card_state), 
 				Card.name(card_state),
 				Card.name(target_creature_state),
 				Creature.total_damage(target_creature_state),
 				Creature.total_hit_points(target_creature_state),
-			)
+			))
 		return game_state
 
 
@@ -635,7 +635,7 @@ class Fireball(Card):
 		
 		has_red = False
 		total_mana = 0
-		for color, count in available_mana.iteritems():
+		for color, count in available_mana.items():
 			total_mana += count
 			if 'R' in color:
 				has_red = True
@@ -693,16 +693,16 @@ class Fireball(Card):
 				game_state = Game.set_creatures(game_state, new_creatures)
 
 			if Game.print_moves(game_state):
-				print "> {} fireballed {} for {} damage." \
-				.format(bot.display_name(blaster, pwp), Card.name(creature), colorless)
+				print("> {} fireballed {} for {} damage." \
+				.format(bot.display_name(blaster, pwp), Card.name(creature), colorless))
 		else:
 			blastee = Game.opponent(game_state, blaster)
 			game_state = Game.increment_hit_points(game_state, Game.get_player_states(game_state).index(blastee), -colorless)
 			game_state = Game.increment_damage_to_player(game_state, Game.get_player_states(game_state).index(blastee), colorless)
 
 			if Game.print_moves(game_state):
-				print "> {} fireballed for {} damage." \
-				.format(Game.player_display_name(blaster, pwp), colorless)
+				print("> {} fireballed for {} damage." \
+				.format(Game.player_display_name(blaster, pwp), colorless))
 
 		return game_state
 
@@ -772,11 +772,11 @@ class Creature(Card):
 		game_state = Game.add_creature(card_state, game_state)
 		if Game.print_moves(game_state):
 			summoner = Game.get_player_states(game_state)[pwp]
-			print "> {} summoned a {}." \
+			print("> {} summoned a {}." \
 				.format(
 					Game.player_display_name(summoner, pwp), 
 					Card.name(card_state)
-				)
+				))
 		return game_state
 
 	@staticmethod
@@ -807,12 +807,12 @@ class Creature(Card):
 			pwp = Card.owner(card_state)
 			game_state = Game.increment_hit_point(game_state, pwp, Creature.total_damage(card_state))
 			if Game.print_moves(game_state):
-				print "> {} gained {} life from {}." \
+				print("> {} gained {} life from {}." \
 					.format(
 						Game.player_display_name(owner, pwp), 
 						Creature.total_damage(card_state), 
 						Card.name(card_state)
-					)
+					))
 		return game_state
 
 	@staticmethod
@@ -826,10 +826,10 @@ class Creature(Card):
 				colored_symbols.append(mana)
 		
 		total_mana = 0
-		for color, count in available_mana.iteritems():
+		for color, count in available_mana.items():
 			total_mana += count
 		
-		for color, count in available_mana.iteritems():
+		for color, count in available_mana.items():
 			if type(color) != int:
 				if color in colored_symbols:
 					colored_symbols.remove(color)
@@ -1024,12 +1024,12 @@ class QuirionRanger(Creature):
 		if Game.print_moves(game_state):
 			pwp = Game.player_with_priority(game_state)
 			player = Game.get_player_states(game_state)[pwp]
-			print "> {} untapped {} with {}." \
+			print("> {} untapped {} with {}." \
 				.format(
 					Game.player_display_name(player, pwp), 
 					Card.name(creature_state), 
 					Card.name(card_state),
-				)
+				))
 
 		return game_state
 
@@ -1048,12 +1048,12 @@ class QuirionRanger(Creature):
 		if Game.print_moves(game_state):
 			pwp = Game.player_with_priority(game_state)
 			player = Game.get_player_states(game_state)[pwp]
-			print "> {} used to {} return {}." \
+			print("> {} used to {} return {}." \
 				.format(
 					Game.player_display_name(player, pwp), 
 					Card.name(card_state), 
 					Card.name(land_to_return),
-				)
+				))
 
 		return game_state
 
@@ -1203,11 +1203,11 @@ class EldraziSpawnToken(Creature):
 			game_state = Card.on_graveyard(e, game_state, Card)
 		
 		if Game.print_moves(card_state):
-			print "> {} sacrificed {}." \
+			print("> {} sacrificed {}." \
 				.format(
 					Game.player_display_name(player, pwp), 
 					Card.name(card_state), 
-				)
+				))
 		return game_state
 
 	@staticmethod
@@ -1294,12 +1294,12 @@ class CreatureEnchantment(Card):
 					new_creatures.append(creature_state)
 			game_state = Game.set_creatures(game_state, new_creatures)
 		if Game.print_moves(game_state):
-			print "> {} played a {} on {}." \
+			print("> {} played a {} on {}." \
 				.format(
 					Game.player_display_name(summoner, pwp), 
 					Card.name(card_state),
 					Card.name(target_creature_state)
-				)
+				))
 		return game_state
 
 
@@ -1312,7 +1312,7 @@ class CreatureEnchantment(Card):
 		pwp = Game.player_with_priority(game_state)
 		card_index = Game.get_hand(game_state, pwp).index(card_state)
 		possible_moves = []
-		for color, count in available_mana.iteritems():
+		for color, count in available_mana.items():
 			total_mana += count
 			if type(color) != int and 'G' in color:
 				has_green = True

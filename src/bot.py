@@ -1,9 +1,9 @@
 """The base Bot class, plays randomly."""
 
-from constants import *
-from game import Game
+from src.constants import *
+from src.game import Game
 from random import choice
-from utils import decarded_state
+from src.utils import decarded_state
 
 class Bot(object):
 
